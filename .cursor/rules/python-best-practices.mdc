@@ -1,0 +1,11 @@
+---
+description: Best practices for Python documentation and usage of BaseModels
+globs: **/*.py
+alwaysApply: false
+---
+- Use docstrings for all functions and classes, following the PEP 257 conventions.
+- Document parameters, return types, and exceptions in docstrings.
+- Utilize type hints for better clarity and type safety.
+- Create a comprehensive README that includes project description, installation instructions, usage examples, and contribution guidelines.
+- Leverage Pydantic's BaseModel for data validation and serialization, ensuring clear and structured data handling.
+- Organize code into modules and packages for better maintainability and readability.
