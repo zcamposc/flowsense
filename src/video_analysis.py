@@ -8,6 +8,7 @@ from typing import Optional, Dict, Set, List, Tuple
 import typer
 from utils.file_manager import generar_nombre_salida, cargar_zonas_desde_json
 from utils.geometry import punto_en_poligono, cruza_linea
+from collections import defaultdict, deque
 
 
 def analizar_video(
@@ -16,7 +17,8 @@ def analizar_video(
     zones_json: Optional[str] = None,
     output_path: Optional[str] = None,
     show: bool = True,
-    classes: Optional[list[str]] = None
+    classes: Optional[list[str]] = None,
+    conf_threshold: float = 0.25
 ) -> None:
     """
     Analiza video con detección de objetos, trayectorias y zonas de interés.
@@ -29,6 +31,8 @@ def analizar_video(
         show (bool): Si es True, muestra el video en tiempo real.
         classes (Optional[list[str]]): Lista de clases a detectar.
             Si es None, solo detecta personas.
+        conf_threshold (float): Umbral de confianza para detecciones.
+            Por defecto 0.25 para mayor sensibilidad.
     """
     output_path = generar_nombre_salida(
         video_path, model_path, output_path, "mp4"

@@ -1,139 +1,147 @@
 # Proyecto de Procesamiento de Videos con YOLOv8
 
-Este proyecto utiliza modelos YOLOv8 para realizar tareas de detección de objetos, seguimiento y análisis en imágenes y videos.
+## Descripción
 
-## Funcionalidades
+Este proyecto implementa un sistema completo de detección y análisis de objetos en imágenes y videos usando YOLOv8. Incluye funcionalidades avanzadas como tracking de objetos, análisis de zonas de interés, y un sistema de confirmación mejorado para reducir falsos negativos.
 
-El proyecto utiliza `uv` como gestor de entorno y paquetes Python. Los comandos se ejecutan desde la raíz del proyecto y los archivos de salida se generan automáticamente en la carpeta `outputs/`.
+## Características Principales
 
-1. **Procesar una imagen:**
-   Detecta objetos en una imagen y genera una imagen procesada. Por defecto detecta personas.
-   ```bash
-   # Detectar solo personas (por defecto)
-   uv run src/main.py --image data/images/image_1.png --model models/yolov8n.pt
+### 🎯 **Detección Mejorada**
+- **Sistema de confirmación**: Solo asigna IDs a objetos que aparecen en 5+ frames consecutivos
+- **Tracking persistente**: Mantiene identidad de objetos entre frames
+- **Umbral de confianza configurable**: Por defecto 0.25 para máxima sensibilidad
+- **Filtrado inteligente**: Reduce falsos positivos y falsos negativos
 
-   # Detectar múltiples objetos (ej: personas y carros)
-   uv run src/main.py --image data/images/image_1.png --model models/yolov8n.pt --classes "person,chair,motorcycle"
-   ```
-   La imagen procesada se guardará en `outputs/` con un nombre generado automáticamente.
+### 📹 **Funcionalidades de Video**
+- **Detección básica**: Identificación de objetos en tiempo real
+- **Tracking avanzado**: Seguimiento de objetos con IDs únicos y trayectorias
+- **Análisis de zonas**: Detección de entrada en áreas específicas y cruce de líneas
+- **Estadísticas en tiempo real**: Contadores de frames y detecciones
 
-2. **Procesar un video:**
-   Detecta objetos en un video y genera un video procesado. Por defecto detecta personas.
-   ```bash
-   # Detectar solo personas (por defecto)
-   uv run src/main.py video --video-path data/videos/video_1.mp4 --model-path models/yolov8n.pt
-
-   # Detectar múltiples objetos (ej: personas, carros y perros)
-   uv run src/main.py video --video-path data/videos/video_1.mp4 --model-path models/yolov8n.pt --classes "person,car,dog"
-   ```
-
-3. **Seguimiento de personas:**
-   Realiza seguimiento de objetos en un video, mostrando IDs únicos y contadores.
-   ```bash
-   # Detecta todo (por defecto)
-   uv run src/main.py track --video-path data/videos/video_1.mp4 --model-path models/yolov8n.pt
-
-   # Detectar múltiples objetos (ej: personas, carros y perros)
-   uv run src/main.py track --video-path data/videos/video_1.mp4 --model-path models/yolov8n.pt
-   ```
-
-4. **Análisis con zonas definidas:**
-   Analiza un video utilizando zonas de interés definidas en un archivo JSON.
-   ```bash
-   uv run src/main.py analyze --video-path data/videos/video_1.mp4 --model-path models/yolov8n.pt --zones-json configs/zonas.json
-   ```
-
-5. **Opciones adicionales:**
-   - El parámetro `--output` o `--output-path` es opcional. Si no se especifica, los archivos se guardan automáticamente en `outputs/` con nombres descriptivos.
-   - Los modelos se descargan automáticamente la primera vez que se necesitan.
-   - El parámetro `--show/--no-show` controla la visualización en tiempo real (activada por defecto).
-   - El parámetro `--classes` permite especificar qué objetos detectar (por defecto: "person").
-   - Los videos procesados se pueden cerrar presionando 'q' cuando la visualización está activada.
-
-   Ejemplos:
-   ```bash
-   # Sin visualización en tiempo real
-   uv run src/main.py video --video-path video_1.mp4 --model-path yolov8n.pt --no-show
-
-   # Detectar múltiples objetos específicos
-   uv run src/main.py video --video-path video_1.mp4 --model-path yolov8n.pt --classes "car,truck,bus"
-   ```
-
-   Clases disponibles: 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'.
-
-6. **Generación de zonas:**
-   Para crear zonas de interés (líneas y polígonos):
-   ```bash
-   uv run src/utils/ejm_tracking.py
-
-## Requisitos
-
-- Python 3.8 o superior
-- [uv](https://github.com/astral-sh/uv) - Gestor de paquetes Python ultrarrápido
+### 🖼️ **Procesamiento de Imágenes**
+- **Detección de objetos**: Identificación con bounding boxes y etiquetas
+- **Colores dinámicos**: Verde para alta confianza, naranja para baja
+- **Fondo negro en etiquetas**: Mejor visibilidad del texto
 
 ## Instalación
 
-1. Clona el repositorio e ingresa al directorio:
-   ```bash
-   git clone <URL_DEL_REPOSITORIO>
-   cd videos_yolo
-   ```
+```bash
+# Clonar el repositorio
+git clone <repository-url>
+cd videos_yolo
 
-2. Instala uv si aún no lo tienes:
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
+# Instalar dependencias
+pip install -r requirements.txt
+```
 
-3. Crea un entorno virtual e instala las dependencias:
-   ```bash
-   uv venv
-   source .venv/bin/activate  # En Windows: .venv\Scripts\activate
-   uv pip install -e .
-   ```
+## Uso
+
+### Detección en Imágenes
+
+```bash
+python src/main.py \
+    --image "data/images/person.jpg" \
+    --model "models/yolov8x.pt" \
+    --conf-threshold 0.25 \
+    --show
+```
+
+### Procesamiento de Video
+
+```bash
+python src/main.py video \
+    --video-path "data/videos/people.mp4" \
+    --model-path "models/yolov8x.pt" \
+    --conf-threshold 0.25 \
+    --show
+```
+
+### Tracking de Objetos
+
+```bash
+python src/main.py track \
+    --video-path "data/videos/people.mp4" \
+    --model-path "models/yolov8x.pt" \
+    --show
+```
+
+### Análisis con Zonas de Interés
+
+```bash
+python src/main.py analyze \
+    --video-path "data/videos/people.mp4" \
+    --model-path "models/yolov8x.pt" \
+    --zones-json "configs/zonas.json" \
+    --conf-threshold 0.25 \
+    --show
+```
+
+## Parámetros Principales
+
+- `--conf-threshold`: Umbral de confianza (0.0-1.0, por defecto 0.25)
+- `--classes`: Lista de clases a detectar (ej: "person,car,dog")
+- `--show`: Mostrar visualización en tiempo real
+- `--output`: Ruta de salida personalizada
+
+## Modelos Recomendados
+
+Para lograr la **máxima detección** de personas:
+
+1. **YOLOv8x** (`yolov8x.pt`) - Máxima precisión
+2. **YOLOv8l** (`yolov8l.pt`) - Alta precisión
+3. **YOLOv8m** (`yolov8m.pt`) - Buena precisión
+
+> **Nota**: Los modelos más grandes requieren GPU para tiempo real.
+
+## Mejoras Implementadas
+
+### 🔧 **Sistema de Confirmación**
+- Filtra detecciones breves (menos de 5 frames)
+- Asigna IDs estables y secuenciales
+- Reduce falsos positivos automáticamente
+
+### 🎨 **Visualización Mejorada**
+- Colores basados en confianza
+- Trayectorias de movimiento
+- Etiquetas con fondo negro
+- Estadísticas en tiempo real
+
+### ⚡ **Optimizaciones de Rendimiento**
+- Tracking persistente habilitado
+- Umbral de confianza configurable
+- Procesamiento eficiente de frames
 
 ## Estructura del Proyecto
 
 ```
 videos_yolo/
+├── src/
+│   ├── main.py              # CLI principal
+│   ├── detect.py            # Detección en imágenes
+│   ├── tracking.py          # Tracking de objetos
+│   ├── video_processing.py  # Procesamiento de video
+│   ├── video_analysis.py    # Análisis avanzado
+│   └── utils/               # Utilidades
+├── models/                  # Modelos YOLO
+├── configs/                 # Configuraciones
 ├── data/                    # Datos de entrada
-│   ├── images/             # Imágenes para procesar
-│   └── videos/             # Videos para procesar
-├── outputs/                # Resultados procesados
-│   ├── images/            # Imágenes con detecciones
-│   └── videos/            # Videos procesados
-├── models/                 # Modelos YOLOv8 (se descargan automáticamente)
-├── configs/                # Configuraciones (zonas de interés, etc.)
-├── src/                    # Código fuente
-│   ├── utils/             # Utilidades comunes
-│   ├── detect.py          # Detección en imágenes
-│   ├── video_processing.py # Procesamiento de video
-│   ├── tracking.py        # Seguimiento de personas
-│   └── main.py           # CLI principal
-├── tests/                 # Pruebas unitarias
-├── pyproject.toml        # Configuración del proyecto
-└── README.md            # Esta documentación
-
+└── outputs/                 # Resultados
 ```
 
-## Desarrollo
+## Contribución
 
-Para mantener el código limpio y consistente:
-
-1. Activa el entorno virtual:
-   ```bash
-   source .venv/bin/activate  # En Windows: .venv\Scripts\activate
-   ```
-
-2. Ejecuta los tests:
-   ```bash
-   uv run pytest
-   ```
-
-3. Verifica el estilo del código:
-   ```bash
-   uv run ruff check .
-   ```
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
 
 ## Licencia
 
-Este proyecto está bajo la licencia MIT.
+Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
+## Agradecimientos
+
+- [Ultralytics](https://github.com/ultralytics/ultralytics) por YOLOv8
+- [OpenCV](https://opencv.org/) por el procesamiento de video
+- [Typer](https://typer.tiangolo.com/) por la interfaz CLI

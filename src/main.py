@@ -1,17 +1,12 @@
 """
-CLI para detección y análisis de objetos    classes: Optional[list[str]] = typer.Option(
-        None,
-        help=(
-            "Lista de objetos a detectar (ej: person,car). "
-            "Por defecto: person"
-        )
-    ),imágenes y videos usando YOLO.
+CLI para detección y análisis de objetos en imágenes y videos usando YOLO.
 """
 import typer
 from typing import Optional
 from detect import detectar_objetos_en_imagen
 from video_processing import procesar_video
 from tracking import realizar_tracking
+from video_unified import procesar_video_unificado
 from utils.file_manager import generar_nombre_salida
 from utils.paths import get_abs_path
 
@@ -48,9 +43,13 @@ def video(
     show: bool = typer.Option(
         True, help="Mostrar visualización en tiempo real"
     ),
-    classes: Optional[list[str]] = typer.Option(
+    classes: Optional[str] = typer.Option(
         None,
-        help="Lista de objetos a detectar (ej: person,car,dog). Por defecto: person"
+        help="Lista de objetos a detectar (ej: person,car,dog). "
+             "Por defecto: person"
+    ),
+    conf_threshold: float = typer.Option(
+        0.25, help="Umbral de confianza para detecciones (0.0-1.0)"
     )
 ) -> None:
     """
@@ -75,7 +74,8 @@ def video(
         model_abs_path,
         output_abs_path,
         show=show,
-        classes=class_list
+        classes=class_list,
+        conf_threshold=conf_threshold
     )
 
 
@@ -95,10 +95,15 @@ def track(
     ),
     classes: Optional[str] = typer.Option(
         None,
-        help=(
-            "Lista de objetos a detectar (ej: person,car). "
-            "Por defecto: person"
-        )
+        help="Lista de objetos a detectar (ej: person,car). "
+             "Por defecto: person"
+    ),
+    conf_threshold: float = typer.Option(
+        0.25, help="Umbral de confianza para detecciones (0.0-1.0)"
+    ),
+    save_stats: bool = typer.Option(
+        True, help="Guardar estadísticas de detección por frame en "
+                   "archivo de texto"
     )
 ) -> None:
     """
@@ -125,7 +130,9 @@ def track(
         model_abs_path,
         output_abs_path,
         show=show,
-        classes=class_list
+        classes=class_list,
+        conf_threshold=conf_threshold,
+        save_stats=save_stats
     )
 
 
@@ -146,12 +153,13 @@ def analyze(
     show: bool = typer.Option(
         True, help="Mostrar visualización en tiempo real"
     ),
-    classes: Optional[list[str]] = typer.Option(
+    classes: Optional[str] = typer.Option(
         None,
-        help=(
-            "Lista de objetos a detectar (ej: person,car). "
-            "Por defecto: person"
-        )
+        help="Lista de objetos a detectar (ej: person,car). "
+             "Por defecto: person"
+    ),
+    conf_threshold: float = typer.Option(
+        0.25, help="Umbral de confianza para detecciones (0.0-1.0)"
     )
 ) -> None:
     """
@@ -179,7 +187,73 @@ def analyze(
         zones_abs_path,
         output_abs_path,
         show=show,
-        classes=class_list
+        classes=class_list,
+        conf_threshold=conf_threshold
+    )
+
+
+@app.command()
+def process(
+    video_path: str = typer.Option(
+        ..., help="Ruta del archivo de video de entrada"
+    ),
+    model_path: str = typer.Option(
+        ..., help="Ruta al modelo YOLO (por ejemplo, yolov8n.pt)"
+    ),
+    output_path: Optional[str] = typer.Option(
+        None, help="Ruta para guardar el video de salida"
+    ),
+    show: bool = typer.Option(
+        True, help="Mostrar visualización en tiempo real"
+    ),
+    classes: Optional[str] = typer.Option(
+        None,
+        help="Lista de objetos a detectar (ej: person,car). "
+             "Por defecto: person"
+    ),
+    enable_tracking: bool = typer.Option(
+        False, help="Habilitar tracking de objetos"
+    ),
+    enable_stats: bool = typer.Option(
+        False, help="Habilitar estadísticas por frame"
+    ),
+    enable_zones: Optional[str] = typer.Option(
+        None, help="Archivo JSON con definición de zonas de interés"
+    ),
+    save_video: bool = typer.Option(
+        True, help="Guardar video procesado"
+    )
+) -> None:
+    """
+    Analizador de video unificado con todas las funcionalidades.
+    
+    Combina detección básica, tracking, estadísticas y análisis de zonas
+    en un solo comando configurable.
+    """
+    # Convertir rutas relativas a absolutas
+    video_abs_path = get_abs_path(video_path)
+    model_abs_path = get_abs_path(model_path)
+    output_abs_path = (
+        None if output_path is None else get_abs_path(output_path)
+    )
+    zones_abs_path = None if enable_zones is None else get_abs_path(enable_zones)
+
+    # Convertir lista de clases si se proporciona
+    class_list = None
+    if classes:
+        class_list = [c.strip() for c in classes.split(',')]
+    
+    ejecutar_video_con_excepciones(
+        procesar_video_unificado,
+        video_abs_path,
+        model_abs_path,
+        output_abs_path,
+        show=show,
+        classes=class_list,
+        enable_tracking=enable_tracking,
+        enable_stats=enable_stats,
+        enable_zones=zones_abs_path,
+        save_video=save_video
     )
 
 
@@ -200,10 +274,11 @@ def main(
     ),
     classes: Optional[str] = typer.Option(
         None,
-        help=(
-            "Lista de objetos a detectar (ej: person,car). "
-            "Por defecto: person"
-        )
+        help="Lista de objetos a detectar (ej: person,car). "
+             "Por defecto: person"
+    ),
+    conf_threshold: float = typer.Option(
+        0.25, help="Umbral de confianza para detecciones (0.0-1.0)"
     )
 ) -> None:
     """Detecta personas en una imagen usando YOLO."""

@@ -1,0 +1,17 @@
+{
+  "script_name": "sript_test.py",
+  "model": "yolov8n.pt",
+  "video": "data/videos/video_1.mp4",
+  "total_frames": 1,
+  "total_detections": 0,
+  "average_detections_per_frame": 0.0,
+  "frame_by_frame_stats": [
+    {
+      "frame": 1,
+      "detections": 0,
+      "confirmed_objects": 0
+    }
+  ],
+  "final_confirmed_objects": 0,
+  "unique_tracking_ids": 0
+}
