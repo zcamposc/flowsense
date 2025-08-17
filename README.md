@@ -34,10 +34,68 @@ cd videos_yolo
 pip install -r requirements.txt
 ```
 
-## Uso
+## 🚀 **Sistema Unificado (Recomendado)**
+
+### **Comando Principal: `process`**
+```bash
+# Solo tracking (por defecto)
+uv run src/main.py process \
+    --video-path "data/videos/video.mp4" \
+    --model-path "models/yolov8n.pt"
+
+# Con estadísticas por frame
+uv run src/main.py process \
+    --video-path "data/videos/video.mp4" \
+    --model-path "models/yolov8n.pt" \
+    --enable-stats
+
+# Con zonas de interés
+uv run src/main.py process \
+    --video-path "data/videos/video.mp4" \
+    --model-path "models/yolov8n.pt" \
+    --enable-zones "configs/zonas.json"
+
+# Con todas las funcionalidades
+uv run src/main.py process \
+    --video-path "data/videos/video.mp4" \
+    --model-path "models/yolov8n.pt" \
+    --enable-stats \
+    --enable-zones "configs/zonas.json"
+```
+
+## 🎯 **Configuración de Zonas de Interés**
+
+### **Script Interactivo de Configuración Mejorado**
+```bash
+# Desde cualquier directorio
+uv run python src/utils/ejm_tracking.py --help
+
+# Usar imagen existente
+uv run python src/utils/ejm_tracking.py --image "imagen.png"
+
+# Extraer frame de video y configurar zonas (Recomendado)
+uv run python src/utils/ejm_tracking.py --video "video.mp4" --frame 5
+
+# Solo líneas o solo polígonos
+uv run python src/utils/ejm_tracking.py --image "imagen.png" --lines-only
+uv run python src/utils/ejm_tracking.py --image "imagen.png" --polygons-only
+```
+
+**Ventajas:**
+- ✅ **Parámetros de línea de comandos** (no más rutas hardcodeadas)
+- ✅ **Extracción automática de frames** desde videos
+- ✅ **Múltiples líneas y polígonos** en una sesión
+- ✅ **Archivos de salida personalizados**
+- ✅ **Validación automática** de archivos
+
+### **Documentación Completa**
+Ver `CONFIGURACION_ZONAS_README.md` para instrucciones detalladas.
+
+## 📚 **Comandos Antiguos (Deprecados)**
+
+> **Nota**: Se recomienda usar el nuevo comando `process` unificado.
 
 ### Detección en Imágenes
-
 ```bash
 python src/main.py \
     --image "data/images/person.jpg" \
@@ -47,7 +105,6 @@ python src/main.py \
 ```
 
 ### Procesamiento de Video
-
 ```bash
 python src/main.py video \
     --video-path "data/videos/people.mp4" \
@@ -57,7 +114,6 @@ python src/main.py video \
 ```
 
 ### Tracking de Objetos
-
 ```bash
 python src/main.py track \
     --video-path "data/videos/people.mp4" \
@@ -66,7 +122,6 @@ python src/main.py track \
 ```
 
 ### Análisis con Zonas de Interés
-
 ```bash
 python src/main.py analyze \
     --video-path "data/videos/people.mp4" \
@@ -93,20 +148,37 @@ Para lograr la **máxima detección** de personas:
 
 > **Nota**: Los modelos más grandes requieren GPU para tiempo real.
 
-## Mejoras Implementadas
+## 🎯 **Ventajas del Sistema Unificado**
 
-### 🔧 **Sistema de Confirmación**
+### ✅ **Consistencia Perfecta**
+- **Tracking siempre activo** para máxima precisión
+- **Mismos resultados** entre ejecuciones
+- **Sin pérdida de detecciones** como en comandos antiguos
+
+### ✅ **Simplicidad de Uso**
+- **Un solo comando** (`process`) para todas las funcionalidades
+- **Flags opcionales** para habilitar características
+- **Nombres de archivos inteligentes** según funcionalidades activadas
+
+### ✅ **Funcionalidades Avanzadas**
+- **Estadísticas por frame** con conteo de objetos en zonas
+- **Análisis de zonas** con alertas en tiempo real
+- **Tracking estable** con IDs únicos confirmados
+
+## 🔧 **Mejoras Implementadas**
+
+### **Sistema de Confirmación**
 - Filtra detecciones breves (menos de 5 frames)
 - Asigna IDs estables y secuenciales
 - Reduce falsos positivos automáticamente
 
-### 🎨 **Visualización Mejorada**
+### **Visualización Mejorada**
 - Colores basados en confianza
 - Trayectorias de movimiento
 - Etiquetas con fondo negro
 - Estadísticas en tiempo real
 
-### ⚡ **Optimizaciones de Rendimiento**
+### **Optimizaciones de Rendimiento**
 - Tracking persistente habilitado
 - Umbral de confianza configurable
 - Procesamiento eficiente de frames
@@ -116,16 +188,25 @@ Para lograr la **máxima detección** de personas:
 ```
 videos_yolo/
 ├── src/
-│   ├── main.py              # CLI principal
+│   ├── main.py              # CLI principal (sistema unificado)
+│   ├── video_unified.py     # Analizador unificado con tracking
 │   ├── detect.py            # Detección en imágenes
-│   ├── tracking.py          # Tracking de objetos
-│   ├── video_processing.py  # Procesamiento de video
-│   ├── video_analysis.py    # Análisis avanzado
+│   ├── tracking.py          # Tracking de objetos (legacy)
+│   ├── video_processing.py  # Procesamiento de video (legacy)
+│   ├── video_analysis.py    # Análisis avanzado (legacy)
 │   └── utils/               # Utilidades
+│       ├── ejm_tracking.py  # Script de configuración de zonas
+│       ├── file_manager.py  # Gestión de archivos
+│       ├── geometry.py      # Funciones geométricas
+│       └── coco_classes.py  # Clases COCO
 ├── models/                  # Modelos YOLO
-├── configs/                 # Configuraciones
+├── configs/                 # Configuraciones (zonas.json)
 ├── data/                    # Datos de entrada
-└── outputs/                 # Resultados
+├── outputs/                 # Resultados
+└── docs/                    # Documentación
+    ├── ANALIZADOR_UNIFICADO_README.md
+    ├── CONFIGURACION_ZONAS_README.md
+    └── RESUMEN_CONSOLIDACION.md
 ```
 
 ## Contribución
@@ -139,6 +220,50 @@ videos_yolo/
 ## Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
+## 📚 **Documentación Adicional**
+
+### **Guías Detalladas**
+- **`ANALIZADOR_UNIFICADO_README.md`** - Sistema unificado completo
+- **`CONFIGURACION_ZONAS_README.md`** - Configuración de zonas y líneas
+- **`RESUMEN_CONSOLIDACION.md`** - Resumen de la consolidación
+
+### **Scripts de Configuración**
+- **`src/utils/ejm_tracking.py`** - Configuración interactiva de zonas
+- **`configs/zonas.json`** - Archivo de configuración de zonas
+
+## 🚀 **Inicio Rápido**
+
+### **1. Instalación**
+```bash
+git clone <repository-url>
+cd videos_yolo
+pip install -r requirements.txt
+```
+
+### **2. Uso Básico**
+```bash
+# Solo tracking
+uv run src/main.py process \
+    --video-path "data/videos/video.mp4" \
+    --model-path "models/yolov8n.pt"
+```
+
+### **3. Configurar Zonas**
+```bash
+cd src/utils
+python ejm_tracking.py
+# Seguir instrucciones interactivas
+```
+
+### **4. Análisis Completo**
+```bash
+uv run src/main.py process \
+    --video-path "data/videos/video.mp4" \
+    --model-path "models/yolov8n.pt" \
+    --enable-stats \
+    --enable-zones "configs/zonas.json"
+```
 
 ## Agradecimientos
 
