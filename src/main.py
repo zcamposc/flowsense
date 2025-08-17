@@ -211,9 +211,7 @@ def process(
         help="Lista de objetos a detectar (ej: person,car). "
              "Por defecto: person"
     ),
-    enable_tracking: bool = typer.Option(
-        False, help="Habilitar tracking de objetos"
-    ),
+
     enable_stats: bool = typer.Option(
         False, help="Habilitar estadísticas por frame"
     ),
@@ -225,9 +223,9 @@ def process(
     )
 ) -> None:
     """
-    Analizador de video unificado con todas las funcionalidades.
+    Analizador de video unificado con tracking siempre activo.
     
-    Combina detección básica, tracking, estadísticas y análisis de zonas
+    Combina tracking, estadísticas y análisis de zonas
     en un solo comando configurable.
     """
     # Convertir rutas relativas a absolutas
@@ -250,7 +248,6 @@ def process(
         output_abs_path,
         show=show,
         classes=class_list,
-        enable_tracking=enable_tracking,
         enable_stats=enable_stats,
         enable_zones=zones_abs_path,
         save_video=save_video

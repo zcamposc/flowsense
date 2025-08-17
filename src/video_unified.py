@@ -21,13 +21,12 @@ def procesar_video_unificado(
     show: bool = True,
     classes: Optional[list[str]] = None,
     # Funcionalidades opcionales
-    enable_tracking: bool = False,
     enable_stats: bool = False,
     enable_zones: Optional[str] = None,
     save_video: bool = True
 ) -> None:
     """
-    Analizador de video unificado con todas las funcionalidades.
+    Analizador de video unificado con tracking siempre activo.
     
     Args:
         video_path (str): Ruta del video de entrada.
@@ -36,7 +35,6 @@ def procesar_video_unificado(
         show (bool): Si es True, muestra el video en tiempo real.
         classes (Optional[list[str]]): Lista de clases a detectar.
             Si es None, solo detecta personas.
-        enable_tracking (bool): Habilitar tracking de objetos.
         enable_stats (bool): Habilitar estadísticas por frame.
         enable_zones (Optional[str]): Archivo JSON con zonas de interés.
         save_video (bool): Si es True, guarda el video procesado.
@@ -47,14 +45,12 @@ def procesar_video_unificado(
     
     # Construir sufijo descriptivo
     suffix_parts = []
-    if enable_tracking:
-        suffix_parts.append("track")
     if enable_stats:
         suffix_parts.append("stats")
     if enable_zones:
         suffix_parts.append("zones")
     
-    suffix = "_" + "_".join(suffix_parts) if suffix_parts else "_basic"
+    suffix = "_" + "_".join(suffix_parts) if suffix_parts else "_track"
     
     # Generar nombre de salida para video
     if output_path is None:
@@ -106,7 +102,7 @@ def procesar_video_unificado(
     else:
         class_ids = validate_classes(['person'])
 
-    # Variables de tracking (si está habilitado)
+    # Variables de tracking (siempre activo)
     id_map = {}
     next_id = 1
     appear = defaultdict(int)
@@ -131,41 +127,22 @@ def procesar_video_unificado(
             objetos_detectados = 0
             ids_confirmados = 0
             
-            # SOLUCIÓN REAL: Usar parámetros IDÉNTICOS pero OPTIMIZADOS
-            # Mantener la consistencia sin perder detecciones
+            # Tracking siempre activo para máxima consistencia
+            # Usar parámetros por defecto de YOLO para máxima detección
             
-            # Parámetros base que SIEMPRE se usan
-            base_params = {
-                'verbose': False,
-                'classes': class_ids,  # Solo las clases especificadas
-                # NO forzar conf, iou - usar valores por defecto de YOLO
-                # 'conf': 0.25,       # ❌ ESTO PERDÍA DETECCIONES
-                # 'iou': 0.45,        # ❌ ESTO TAMBIÉN
-                'max_det': 300,        # Máximo de detecciones
-                'agnostic_nms': False, # NMS agnóstico de clase
-                'retina_masks': False  # Sin máscaras de retina
-            }
-            
-            # Ejecutar YOLO con parámetros IDÉNTICOS
-            if enable_tracking:
-                # Modo tracking con parámetros idénticos
-                results = model.track(
-                    frame, 
-                    persist=True,
-                    **base_params
-                )
-                mode_name = "Tracking"
-            else:
-                # Modo básico con parámetros idénticos
-                results = model(frame, **base_params)
-                mode_name = "Básico"
+            # Ejecutar YOLO con tracking SIEMPRE activo
+            results = model.track(
+                frame, 
+                persist=True,
+                verbose=False
+            )
             
             # Debug del primer frame
             if frame_count == 1:
-                print(f"[DEBUG] Modo: {mode_name}")
+                print(f"[DEBUG] Modo: Tracking (siempre activo)")
                 print(f"[DEBUG] Estadísticas: {'Sí' if enable_stats else 'No'}")
                 print(f"[DEBUG] Zonas: {'Sí' if enable_zones else 'No'}")
-                print(f"[DEBUG] Usando parámetros por defecto de YOLO para máxima detección")
+                print(f"[DEBUG] Tracking siempre activo para máxima consistencia")
             
             # Contar detecciones para validación
             total_detections_this_frame = 0
@@ -179,13 +156,8 @@ def procesar_video_unificado(
             if frame_count == 1:
                 print(f"[DEBUG] Detecciones totales en frame 1: {total_detections_this_frame}")
             
-            # VALIDACIÓN: Ahora ambos métodos deberían detectar lo mismo
-            if enable_tracking and frame_count == 1:
-                # Verificar que tracking mantenga la misma detección
-                print(f"[DEBUG] Tracking activado - verificando consistencia...")
-            
-            # Procesar resultados
-            if results[0].boxes.id is not None and enable_tracking:
+            # Procesar resultados (tracking siempre activo)
+            if results[0].boxes.id is not None:
                 # Modo tracking
                 boxes = results[0].boxes.xyxy.cpu().numpy()
                 track_ids = results[0].boxes.id.int().cpu().numpy()
@@ -262,53 +234,12 @@ def procesar_video_unificado(
                                     polygons, lines, class_name
                                 )
                 
-            elif not enable_tracking:
-                # Modo detección básica
-                frame_detections = 0
-                for result in results:
-                    boxes = result.boxes
-                    for box in boxes:
-                        cls = int(box.cls[0])
-                        conf = float(box.conf[0])
-                        
-                        if cls in class_ids:
-                            x1, y1, x2, y2 = map(int, box.xyxy[0])
-                            class_name = get_class_name(cls)
-                            label = f"{class_name} {conf:.2f}"
-                            
-                            # Dibujar bounding box con color basado en confianza
-                            color = (0, 255, 0) if conf > 0.5 else (0, 165, 255)
-                            thickness = 2 if conf > 0.5 else 1
-                            
-                            cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness)
-                            
-                            # Fondo negro para mejor visibilidad del texto
-                            label_size = cv2.getTextSize(
-                                label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2
-                            )[0]
-                            cv2.rectangle(
-                                frame,
-                                (x1, y1 - 30),
-                                (x1 + label_size[0], y1),
-                                (0, 0, 0),
-                                -1
-                            )
-                            
-                            cv2.putText(
-                                frame, label, (x1, y1 - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
-                            )
-                            
-                            frame_detections += 1
-                
-                objetos_detectados = frame_detections
-                
-                # Mostrar estadísticas en tiempo real
-                stats_text = f"Frame: {frame_count} | Det: {frame_detections}"
-                cv2.putText(
-                    frame, stats_text,
-                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
-                )
+            # Mostrar estadísticas en tiempo real
+            stats_text = f"Frame: {frame_count} | Det: {objetos_detectados} | IDs: {len(unique_person_ids)}"
+            cv2.putText(
+                frame, stats_text,
+                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
+            )
 
             # Visualizar zonas si está habilitado
             if enable_zones:
@@ -316,14 +247,12 @@ def procesar_video_unificado(
 
             # Escribir estadísticas del frame si está habilitado
             if enable_stats and stats_file:
-                # Calcular valores para estadísticas según el modo
-                ids_confirmados_valor = ids_confirmados if enable_tracking else 0
-                ids_unicos_valor = len(unique_person_ids) if enable_tracking else 0
-                en_zonas_valor = len(ids_en_zona) if enable_tracking and enable_zones else 0
-                cruzaron_lineas_valor = len(ids_cruzaron_linea) if enable_tracking and enable_zones else 0
+                # Tracking siempre activo - todas las estadísticas disponibles
+                en_zonas_valor = len(ids_en_zona) if enable_zones else 0
+                cruzaron_lineas_valor = len(ids_cruzaron_linea) if enable_zones else 0
                 
                 stats_file.write(f"{frame_count}\t{objetos_detectados}\t"
-                               f"{ids_confirmados_valor}\t{ids_unicos_valor}\t"
+                               f"{ids_confirmados}\t{len(unique_person_ids)}\t"
                                f"{en_zonas_valor}\t{cruzaron_lineas_valor}\n")
 
             # Guardar frame en video si está habilitado
@@ -360,11 +289,10 @@ def procesar_video_unificado(
     
     print(f"🎬 Total de frames procesados: {frame_count}")
     
-    if enable_tracking:
-        print(f"\n🔍 RESUMEN DE TRACKING:")
-        print(f"   • IDs únicos confirmados: {len(unique_person_ids)}")
-        print(f"   • Objetos detectados inicialmente: {len(id_map)}")
-        print(f"   • Objetos confirmados (5+ frames): {len(unique_person_ids)}")
+    print(f"\n🔍 RESUMEN DE TRACKING:")
+    print(f"   • IDs únicos confirmados: {len(unique_person_ids)}")
+    print(f"   • Objetos detectados inicialmente: {len(id_map)}")
+    print(f"   • Objetos confirmados (5+ frames): {len(unique_person_ids)}")
     
     if enable_zones:
         print(f"\n📍 RESUMEN DE ZONAS:")
