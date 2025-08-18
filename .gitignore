@@ -1,0 +1,23 @@
+# Ignorar el ambiente virtual
+env/
+yolov_env/
+
+# Ignorar archivos de video grandes
+videos/
+
+# Ignorar archivos de datos temporales o resultados
+*.csv
+*.log
+*.tmp
+
+# Ignorar checkpoints o modelos pesados que se pueden volver a descargar
+*.pt
+
+# Ignorar notebooks checkpoints automáticos
+.notebooks/
+.ipynb_checkpoints/
+
+# Archivos del sistema (Mac, VSCode, etc.)
+.DS_Store
+.vscode/
+
