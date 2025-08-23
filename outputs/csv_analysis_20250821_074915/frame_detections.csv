@@ -1,0 +1,5 @@
+id,analysis_id,frame_number,timestamp_ms,track_id,class_name,confidence,bbox_x1,bbox_y1,bbox_x2,bbox_y2,center_x,center_y,created_at
+detection_1_1_40,analysis_001,1,40,1,person,0.8072,1459,469,1544,640,1501,554,2025-08-21T07:49:17.192426
+detection_2_1_40,analysis_001,1,40,2,person,0.7892,1446,319,1516,480,1481,399,2025-08-21T07:49:17.192804
+detection_3_1_40,analysis_001,1,40,3,person,0.7729,664,649,744,850,704,749,2025-08-21T07:49:17.193080
+detection_4_1_40,analysis_001,1,40,4,person,0.7686,259,434,326,609,292,521,2025-08-21T07:49:17.193155

@@ -1,0 +1,5 @@
+analysis_id,zone_id,zone_name,track_id,current_status,last_event_time
+analysis-001,zone-001,entrada_principal,42,outside,15000
+analysis-001,zone-001,entrada_principal,43,outside,16000
+analysis-001,zone-002,zona_restriccion,42,outside,30000
+analysis-001,zone-002,zona_restriccion,43,outside,0

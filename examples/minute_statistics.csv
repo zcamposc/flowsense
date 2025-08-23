@@ -1,0 +1,3 @@
+id,analysis_id,minute_timestamp,total_detections,unique_tracks,zone_entries,zone_exits,line_crossings,created_at
+eae9192b-68c5-4824-84c0-52c7e946dc16,analysis-001,2024-01-15 10:00:00,1080,5,2,2,4,2024-01-15 10:01:00
+74d31293-4583-436b-86bf-5aa12895b2b5,analysis-001,2024-01-15 10:01:00,1120,6,3,1,2,2024-01-15 10:02:00

@@ -1,0 +1,3 @@
+enfoque,descripcion,frames_por_minuto,detecciones_por_frame,total_registros,tamaño_estimado_mb,operaciones_db,eficiencia
+ACTUAL,Guardar cada frame,1800,3,5400,1.08,5400,Baja (99% redundante)
+OPTIMIZADO,Solo eventos significativos,1800,0,9,0.006,9,Alta (solo relevante)

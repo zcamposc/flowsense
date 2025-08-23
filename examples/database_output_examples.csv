@@ -1,0 +1,77 @@
+# 🎯 EJEMPLOS DE SALIDA DE BASE DE DATOS OPTIMIZADA
+# Estos archivos muestran exactamente cómo se verán los datos guardados
+
+# =====================================================
+# 1. ZONE_EVENTS.CSV - Eventos de entrada/salida de zonas
+# =====================================================
+id,analysis_id,zone_id,zone_name,track_id,event_type,frame_number,timestamp_ms,position_x,position_y,created_at
+uuid-1,analysis-001,zone-001,entrada_principal,42,enter,150,5000,125,250,2024-01-15 10:00:05
+uuid-2,analysis-001,zone-001,entrada_principal,43,enter,180,6000,130,245,2024-01-15 10:00:06
+uuid-3,analysis-001,zone-001,entrada_principal,42,exit,450,15000,128,252,2024-01-15 10:00:15
+uuid-4,analysis-001,zone-001,entrada_principal,43,exit,480,16000,132,248,2024-01-15 10:00:16
+uuid-5,analysis-001,zone-002,zona_restriccion,42,enter,600,20000,450,180,2024-01-15 10:00:20
+uuid-6,analysis-001,zone-002,zona_restriccion,42,exit,900,30000,455,185,2024-01-15 10:00:30
+
+# =====================================================
+# 2. LINE_CROSSING_EVENTS.CSV - Cruces de líneas con dirección
+# =====================================================
+id,analysis_id,zone_id,line_name,track_id,direction,frame_number,timestamp_ms,position_x,position_y,created_at
+uuid-7,analysis-001,zone-003,linea_entrada,42,left_to_right,240,8000,200,300,2024-01-15 10:00:08
+uuid-8,analysis-001,zone-003,linea_entrada,43,right_to_left,270,9000,195,305,2024-01-15 10:00:09
+uuid-9,analysis-001,zone-003,linea_entrada,44,left_to_right,300,10000,205,298,2024-01-15 10:00:10
+uuid-10,analysis-001,zone-003,linea_entrada,45,left_to_right,330,11000,198,302,2024-01-15 10:00:11
+
+# =====================================================
+# 3. MINUTE_STATISTICS.CSV - Estadísticas agregadas por minuto
+# =====================================================
+id,analysis_id,minute_timestamp,total_detections,unique_tracks,zone_entries,zone_exits,line_crossings,created_at
+uuid-11,analysis-001,2024-01-15 10:00:00,1080,5,2,2,4,2024-01-15 10:01:00
+
+# =====================================================
+# 4. TRACK_ZONE_STATUS.CSV - Estado actual de cada track en cada zona
+# =====================================================
+analysis_id,zone_id,zone_name,track_id,current_status,last_event_time
+analysis-001,zone-001,entrada_principal,42,outside,15000
+analysis-001,zone-001,entrada_principal,43,outside,16000
+analysis-001,zone-002,zona_restriccion,42,outside,30000
+analysis-001,zone-002,zona_restriccion,43,outside,0
+
+# =====================================================
+# 5. COMPARACIÓN: ENFOQUE ACTUAL vs OPTIMIZADO
+# =====================================================
+# ENFOQUE ACTUAL (ineficiente):
+# - Guardaría 1,800 frames × 3 detecciones = 5,400 registros
+# - Archivo CSV sería de ~1.08 MB
+# - 99% de datos redundantes
+
+# ENFOQUE OPTIMIZADO (eficiente):
+# - Solo 10 eventos significativos
+# - Archivo CSV de ~6 KB
+# - Solo información relevante
+
+# =====================================================
+# 6. EJEMPLO DE CONSULTA SQL RÁPIDA
+# =====================================================
+# Pregunta: ¿Cuántas personas entraron en la zona "entrada_principal"?
+# 
+# SQL Optimizado:
+# SELECT COUNT(*) FROM zone_events 
+# WHERE zone_name = 'entrada_principal' AND event_type = 'enter';
+# 
+# Resultado: 2 personas
+# Tiempo: <1ms (solo 2 registros)
+
+# =====================================================
+# 7. ANÁLISIS DE FLUJO TEMPORAL
+# =====================================================
+# Pregunta: ¿Cuál es el patrón de entrada por hora?
+#
+# SQL Optimizado:
+# SELECT 
+#   date_trunc('hour', to_timestamp(timestamp_ms / 1000.0)) as hour,
+#   COUNT(*) as entries
+# FROM zone_events 
+# WHERE event_type = 'enter' 
+# GROUP BY hour;
+#
+# Resultado: Solo procesa eventos de entrada, no miles de frames

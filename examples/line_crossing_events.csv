@@ -1,0 +1,5 @@
+id,analysis_id,zone_id,line_name,track_id,direction,frame_number,timestamp_ms,position_x,position_y,created_at
+85d15783-b0c3-472f-8188-42c4fabcf55f,analysis-001,zone-003,linea_entrada,42,left_to_right,240,8000,200,300,2024-01-15 10:00:08
+23483980-9804-4383-838d-c20504f19c6c,analysis-001,zone-003,linea_entrada,43,right_to_left,270,9000,195,305,2024-01-15 10:00:09
+c16e89c9-9ae7-4cd4-8109-1a271925a381,analysis-001,zone-003,linea_entrada,44,left_to_right,300,10000,205,298,2024-01-15 10:00:10
+8ca93a59-e639-452c-9162-ce3b22d92dea,analysis-001,zone-003,linea_entrada,45,left_to_right,330,11000,198,302,2024-01-15 10:00:11

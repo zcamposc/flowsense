@@ -9,9 +9,20 @@ from ultralytics import YOLO
 from typing import Optional, Dict, Set, List, Tuple
 import os
 from collections import defaultdict, deque
-from utils.file_manager import generar_nombre_salida, cargar_zonas_desde_json
+from utils.file_manager import generar_nombre_salida, cargar_zonas_desde_json, cargar_nombres_zonas
 from utils.geometry import punto_en_poligono, cruza_linea
 from utils.coco_classes import validate_classes, get_class_name
+
+# Importar módulos necesarios
+from datetime import datetime
+
+# Importar módulo de persistencia
+try:
+    from persistence import CSVWriter, DetectionEvent
+    PERSISTENCE_AVAILABLE = True
+except ImportError:
+    PERSISTENCE_AVAILABLE = False
+    print("[INFO] Módulo de persistencia no disponible.")
 
 
 def procesar_video_unificado(
@@ -20,10 +31,13 @@ def procesar_video_unificado(
     output_path: Optional[str] = None,
     show: bool = True,
     classes: Optional[list[str]] = None,
+    conf_threshold: Optional[float] = None,
     # Funcionalidades opcionales
     enable_stats: bool = False,
     enable_zones: Optional[str] = None,
-    save_video: bool = True
+    save_video: bool = True,
+    # Nueva funcionalidad: Base de datos
+    enable_database: bool = False
 ) -> None:
     """
     Analizador de video unificado con tracking siempre activo.
@@ -35,9 +49,12 @@ def procesar_video_unificado(
         show (bool): Si es True, muestra el video en tiempo real.
         classes (Optional[list[str]]): Lista de clases a detectar.
             Si es None, solo detecta personas.
+        conf_threshold (Optional[float]): Umbral de confianza para detecciones.
+            Si es None, usa la configuración por defecto de YOLO.
         enable_stats (bool): Habilitar estadísticas por frame.
         enable_zones (Optional[str]): Archivo JSON con zonas de interés.
         save_video (bool): Si es True, guarda el video procesado.
+        enable_database (bool): Habilitar funcionalidad de base de datos.
     """
     # Generar nombres inteligentes basados en parámetros activados
     input_name = os.path.splitext(os.path.basename(video_path))[0]
@@ -54,7 +71,10 @@ def procesar_video_unificado(
     
     # Generar nombre de salida para video
     if output_path is None:
-        output_path = f"outputs/{input_name}_{model_name}{suffix}.mp4"
+        # Generar nombre único automático con timestamp para evitar sobrescrituras
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = f"outputs/{input_name}_{model_name}{suffix}_{timestamp}.mp4"
     else:
         output_path = generar_nombre_salida(
             video_path, model_path, output_path, "mp4"
@@ -64,7 +84,9 @@ def procesar_video_unificado(
     stats_path = None
     stats_file = None
     if enable_stats:
-        stats_path = f"outputs/{input_name}_{model_name}{suffix}_stats.txt"
+        # Siempre usar el mismo nombre base que el video (con sufijo _stats)
+        output_base = os.path.splitext(os.path.basename(output_path))[0]
+        stats_path = f"outputs/{output_base}_stats.txt"
         
         # Crear directorio outputs si no existe
         os.makedirs("outputs", exist_ok=True)
@@ -88,7 +110,7 @@ def procesar_video_unificado(
         fourcc = cv2.VideoWriter_fourcc(*'avc1')
         fps = cap.get(cv2.CAP_PROP_FPS)
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
     # Cargar zonas de interés si está habilitado
@@ -96,22 +118,54 @@ def procesar_video_unificado(
     if enable_zones:
         lines, polygons = cargar_zonas_desde_json(enable_zones)
 
+    # Inicializar módulo de persistencia
+    persistence_writer = None
+    zones_config = []
+    
+    if PERSISTENCE_AVAILABLE:
+        try:
+            # Crear directorio para CSV
+            csv_output_dir = f"outputs/csv_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            # Inicializar escritor de CSV
+            persistence_writer = CSVWriter(csv_output_dir)
+            
+            # Cargar nombres personalizados de zonas si están disponibles
+            zone_names = cargar_nombres_zonas(enable_zones)
+            
+            # Configurar zonas para el escritor
+            if enable_zones and polygons:
+                for i, polygon in enumerate(polygons):
+                    zone_id = zone_names.get(f"polygon_{i+1}", f"zone_polygon_{i+1}")
+                    zones_config.append((zone_id, "polygon", polygon))
+            
+            if enable_zones and lines:
+                for i, line in enumerate(lines):
+                    line_id = zone_names.get(f"line_{i+1}", f"zone_line_{i+1}")
+                    zones_config.append((line_id, "line", line))
+                    
+        except Exception as e:
+            print(f"[ERROR] No se pudo inicializar persistencia: {e}")
+            persistence_writer = None
+            zones_config = []
+
     # Configurar clases a detectar
     if classes is not None:
         class_ids = validate_classes(classes)
     else:
+        # Si no se especifican clases, usar solo 'person' por defecto
         class_ids = validate_classes(['person'])
 
     # Variables de tracking (siempre activo)
+    # Variables de tracking
     id_map = {}
     next_id = 1
-    appear = defaultdict(int)
     trail = defaultdict(lambda: deque(maxlen=30))
     unique_person_ids = set()
     
     # Variables de análisis de zonas
     trayectorias: Dict[int, List[Tuple[int, int]]] = {}
-    ids_en_zona: Set[int] = set()
+    ids_en_zona: Dict[int, Set[str]] = {}  # track_id -> set of zone_ids
     ids_cruzaron_linea: Set[int] = set()
     
     # Contadores de frame
@@ -130,19 +184,18 @@ def procesar_video_unificado(
             # Tracking siempre activo para máxima consistencia
             # Usar parámetros por defecto de YOLO para máxima detección
             
-            # Ejecutar YOLO con tracking SIEMPRE activo
-            results = model.track(
-                frame, 
-                persist=True,
-                verbose=False
-            )
+            # Preparar parámetros para YOLO
+            track_params = {
+                'persist': True,
+                'verbose': False
+            }
             
-            # Debug del primer frame
-            if frame_count == 1:
-                print(f"[DEBUG] Modo: Tracking (siempre activo)")
-                print(f"[DEBUG] Estadísticas: {'Sí' if enable_stats else 'No'}")
-                print(f"[DEBUG] Zonas: {'Sí' if enable_zones else 'No'}")
-                print(f"[DEBUG] Tracking siempre activo para máxima consistencia")
+            # Agregar conf_threshold solo si se especifica
+            if conf_threshold is not None:
+                track_params['conf'] = conf_threshold
+            
+            # Ejecutar YOLO con tracking SIEMPRE activo
+            results = model.track(frame, **track_params)
             
             # Contar detecciones para validación
             total_detections_this_frame = 0
@@ -152,9 +205,6 @@ def procesar_video_unificado(
                     cls = int(box.cls[0])
                     if cls in class_ids:
                         total_detections_this_frame += 1
-            
-            if frame_count == 1:
-                print(f"[DEBUG] Detecciones totales en frame 1: {total_detections_this_frame}")
             
             # Procesar resultados (tracking siempre activo)
             if results[0].boxes.id is not None:
@@ -172,15 +222,12 @@ def procesar_video_unificado(
                         cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
                         class_name = get_class_name(int(cls))
                         
-                        # Incrementar contador de apariciones
-                        appear[oid] += 1
-
-                        # Solo asignar ID permanente si aparece en 5+ frames
-                        if (appear[oid] >= 5 and oid not in id_map):
+                        # Asignar ID permanente inmediatamente
+                        if oid not in id_map:
                             id_map[oid] = next_id
                             next_id += 1
 
-                        # Solo procesar objetos confirmados
+                        # Procesar todos los objetos trackeados
                         if oid in id_map:
                             stable_id = id_map[oid]
                             unique_person_ids.add(stable_id)
@@ -226,12 +273,43 @@ def procesar_video_unificado(
                             # Círculo en el centro del objeto
                             cv2.circle(frame, (cx, cy), 5, (0, 0, 255), -1)
                             
+                            # Escribir detección usando módulo de persistencia
+                            if persistence_writer:
+                                try:
+                                    # Calcular timestamp en milisegundos
+                                    timestamp_ms = int(frame_count * (1000 / cap.get(cv2.CAP_PROP_FPS)))
+                                    
+                                    detection = DetectionEvent(
+                                        frame_number=frame_count,
+                                        timestamp_ms=timestamp_ms,
+                                        track_id=stable_id,
+                                        class_name=class_name,
+                                        confidence=conf,
+                                        bbox_x1=x1,
+                                        bbox_y1=y1,
+                                        bbox_x2=x2,
+                                        bbox_y2=y2,
+                                        center_x=cx,
+                                        center_y=cy
+                                    )
+                                    persistence_writer.write_detection(detection)
+                                except Exception as e:
+                                    print(f"[ERROR] No se pudo guardar detección: {e}")
+                            
                             # Análisis de zonas si está habilitado
                             if enable_zones:
+                                # Calcular timestamp en milisegundos
+                                timestamp_ms = int(frame_count * (1000 / cap.get(cv2.CAP_PROP_FPS)))
+                                
                                 analizar_objeto_con_zonas(
                                     frame, box, stable_id, trayectorias,
                                     ids_en_zona, ids_cruzaron_linea,
-                                    polygons, lines, class_name
+                                    polygons, lines, class_name,
+                                    frame_number=frame_count,
+                                    timestamp_ms=timestamp_ms,
+                                    persistence_writer=persistence_writer,
+                                    zones_config=zones_config,
+                                    conf=conf
                                 )
                 
             # Mostrar estadísticas en tiempo real
@@ -248,7 +326,7 @@ def procesar_video_unificado(
             # Escribir estadísticas del frame si está habilitado
             if enable_stats and stats_file:
                 # Tracking siempre activo - todas las estadísticas disponibles
-                en_zonas_valor = len(ids_en_zona) if enable_zones else 0
+                en_zonas_valor = sum(len(zones) for zones in ids_en_zona.values()) if enable_zones else 0
                 cruzaron_lineas_valor = len(ids_cruzaron_linea) if enable_zones else 0
                 
                 stats_file.write(f"{frame_count}\t{objetos_detectados}\t"
@@ -276,6 +354,13 @@ def procesar_video_unificado(
             stats_file.close()
             print(f"Estadísticas guardadas en: {stats_path}")
     
+    # Cerrar módulo de persistencia
+    if persistence_writer:
+        try:
+            persistence_writer.close()
+        except Exception as e:
+            print(f"[ERROR] No se pudo cerrar persistencia: {e}")
+    
     # Resumen final
     print(f"\n{'='*60}")
     print(f"🎯 ANÁLISIS DE VIDEO COMPLETADO")
@@ -287,6 +372,15 @@ def procesar_video_unificado(
     if enable_stats:
         print(f"📊 Estadísticas guardadas en: {stats_path}")
     
+    if persistence_writer:
+        summary = persistence_writer.get_summary()
+        print(f"🗄️  Archivos CSV generados en: {summary['output_dir']}")
+        print(f"   • frame_detections.csv (enfoque sin optimizar): {summary['detection_count']} registros")
+        print(f"   • zone_events.csv (eventos de zona optimizados)")
+        print(f"   • line_crossing_events.csv (cruces de línea optimizados)")
+        print(f"   • minute_statistics.csv (estadísticas por minuto)")
+        print(f"   • Total eventos optimizados: {summary['event_count']}")
+    
     print(f"🎬 Total de frames procesados: {frame_count}")
     
     print(f"\n🔍 RESUMEN DE TRACKING:")
@@ -296,7 +390,7 @@ def procesar_video_unificado(
     
     if enable_zones:
         print(f"\n📍 RESUMEN DE ZONAS:")
-        print(f"   • Objetos en zonas: {len(ids_en_zona)}")
+        print(f"   • Objetos en zonas: {sum(len(zones) for zones in ids_en_zona.values())}")
         print(f"   • Objetos cruzando líneas: {len(ids_cruzaron_linea)}")
     
     print(f"{'='*60}")
@@ -307,11 +401,17 @@ def analizar_objeto_con_zonas(
     box: np.ndarray,
     track_id: int,
     trayectorias: Dict[int, List[Tuple[int, int]]],
-    ids_en_zona: Set[int],
+    ids_en_zona: Dict[int, Set[str]],
     ids_cruzaron_linea: Set[int],
     polygons: List[List[Tuple[int, int]]],
     lines: List[List[Tuple[int, int]]],
-    class_name: str = "objeto"
+    class_name: str = "objeto",
+    # Parámetros adicionales para persistencia
+    frame_number: int = 0,
+    timestamp_ms: int = 0,
+    persistence_writer = None,
+    zones_config: List[Tuple] = None,
+    conf: float = 0.0 # Added conf parameter
 ) -> None:
     """
     Analiza un objeto detectado: posición, trayectoria y eventos de zonas.
@@ -325,18 +425,98 @@ def analizar_objeto_con_zonas(
     trayectorias[track_id].append((cx, cy))
     pts = trayectorias[track_id]
 
-    # Detectar entrada a zonas
-    for poly in polygons:
-        if punto_en_poligono((cx, cy), poly) and track_id not in ids_en_zona:
-            ids_en_zona.add(track_id)
+    # Detectar entrada y salida de zonas
+    for i, poly in enumerate(polygons):
+        is_in_zone = punto_en_poligono((cx, cy), poly)
+        
+        if is_in_zone:
+            # ENTRADA a zona
+            if track_id not in ids_en_zona:
+                ids_en_zona[track_id] = set()  # Initialize if not exists
+            ids_en_zona[track_id].add(f"polygon_{i+1}")
             print(f"[ALERTA] {class_name} ID {track_id} ha entrado en zona de interés.")
+            
+            # Guardar evento usando módulo de persistencia
+            if persistence_writer and zones_config:
+                for zone_id, zone_type, zone_coords in zones_config:
+                    if zone_type == "polygon" and zone_coords == poly:
+                        try:
+                            zone_name = f"polygon_{zone_id.split('_')[-1]}"
+                            persistence_writer.check_zone_event(
+                                track_id=track_id,
+                                zone_id=zone_id,
+                                zone_name=zone_name,
+                                is_in_zone=True,
+                                frame_number=frame_number,
+                                timestamp_ms=timestamp_ms,
+                                position_x=cx,
+                                position_y=cy,
+                                class_name=class_name,
+                                confidence=conf
+                            )
+                        except Exception as e:
+                            print(f"[ERROR] No se pudo guardar evento: {e}")
+                            
+        elif not is_in_zone and track_id in ids_en_zona and f"polygon_{i+1}" in ids_en_zona[track_id]:
+            # SALIDA de zona
+            ids_en_zona[track_id].discard(f"polygon_{i+1}")
+            print(f"[ALERTA] {class_name} ID {track_id} ha salido de zona de interés.")
+            
+            # Guardar evento usando módulo de persistencia
+            if persistence_writer and zones_config:
+                for zone_id, zone_type, zone_coords in zones_config:
+                    if zone_type == "polygon" and zone_coords == poly:
+                        try:
+                            zone_name = f"polygon_{zone_id.split('_')[-1]}"
+                            result = persistence_writer.check_zone_event(
+                                track_id=track_id,
+                                zone_id=zone_id,
+                                zone_name=zone_name,
+                                is_in_zone=False,  # SALIDA
+                                frame_number=frame_number,
+                                timestamp_ms=timestamp_ms,
+                                position_x=cx,
+                                position_y=cy,
+                                class_name=class_name,
+                                confidence=conf
+                            )
+                            if result:
+                                print(f"[CSV] Evento de zona guardado: exit para track {track_id}")
+                        except Exception as e:
+                            print(f"[ERROR] Error al guardar evento de salida: {e}")
 
     # Detectar cruce de líneas
     if len(pts) > 1:
-        for linea in lines:
+        for i, linea in enumerate(lines):
             if (cruza_linea(pts[-2], pts[-1], linea) and track_id not in ids_cruzaron_linea):
                 ids_cruzaron_linea.add(track_id)
                 print(f"[ALERTA] {class_name} ID {track_id} ha cruzado línea de interés.")
+                
+                # Guardar cruce usando módulo de persistencia
+                if persistence_writer and zones_config:
+                    for zone_id, zone_type, zone_coords in zones_config:
+                        if zone_type == "line" and zone_coords == linea:
+                            try:
+                                # Determinar dirección del cruce
+                                prev_x, prev_y = pts[-2]
+                                direction = "left_to_right" if cx > prev_x else "right_to_left"
+                                
+                                line_name = f"line_{zone_id.split('_')[-1]}"
+                                persistence_writer.check_line_crossing(
+                                    track_id=track_id,
+                                    line_id=zone_id,
+                                    line_name=line_name,
+                                    crossed_line=True,
+                                    direction=direction,
+                                    frame_number=frame_number,
+                                    timestamp_ms=timestamp_ms,
+                                    position_x=cx,
+                                    position_y=cy,
+                                    class_name=class_name,
+                                    confidence=conf
+                                )
+                            except Exception as e:
+                                print(f"[ERROR] No se pudo guardar cruce: {e}")
 
 
 def dibujar_zonas(

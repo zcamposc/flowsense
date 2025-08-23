@@ -1,0 +1,2 @@
+id,analysis_id,frame_number,timestamp_ms,track_id,class_name,confidence,bbox_x1,bbox_y1,bbox_x2,bbox_y2,center_x,center_y,created_at
+detection_1_1_40,analysis_001,1,40,1,person,0.8072,1459,469,1544,640,1501,554,2025-08-21T15:01:55.082389
