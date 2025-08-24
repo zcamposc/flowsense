@@ -1,0 +1,16 @@
+id,analysis_id,line_id,line_name,track_id,direction,frame_number,timestamp_ms,position_x,position_y,class_name,confidence,created_at
+crossing_5_21_840,analysis_001,line_entrada_principal,line_principal,5,right_to_left,21,840,1161,928,person,0.8142616,2025-08-24T01:01:06.404800
+crossing_21_28_1120,analysis_001,line_entrada_principal,line_principal,21,right_to_left,28,1120,1352,791,person,0.7973144,2025-08-24T01:01:07.389487
+crossing_1_29_1160,analysis_001,line_entrada_principal,line_principal,1,left_to_right,29,1160,1545,653,person,0.72985774,2025-08-24T01:01:07.472276
+crossing_2_58_2320,analysis_001,line_entrada_principal,line_principal,2,left_to_right,58,2320,1590,620,person,0.60188013,2025-08-24T01:01:10.786961
+crossing_54_60_2400,analysis_001,line_entrada_principal,line_principal,54,right_to_left,60,2400,1072,993,person,0.69396174,2025-08-24T01:01:11.039793
+crossing_33_73_2920,analysis_001,line_entrada_principal,line_principal,33,right_to_left,73,2920,1733,510,person,0.79159653,2025-08-24T01:01:12.656318
+crossing_7_86_3440,analysis_001,line_entrada_principal,line_principal,7,left_to_right,86,3440,1903,394,person,0.3097468,2025-08-24T01:01:14.489986
+crossing_36_92_3680,analysis_001,line_entrada_principal,line_principal,36,right_to_left,92,3680,1851,428,person,0.5664481,2025-08-24T01:01:15.179306
+crossing_66_103_4120,analysis_001,line_entrada_principal,line_principal,66,right_to_left,103,4120,1232,876,person,0.8049643,2025-08-24T01:01:16.506805
+crossing_46_143_5720,analysis_001,line_entrada_principal,line_principal,46,left_to_right,143,5720,1820,454,person,0.76367277,2025-08-24T01:01:20.989626
+crossing_12_239_9560,analysis_001,line_entrada_principal,line_principal,12,left_to_right,239,9560,1813,459,person,0.5139502,2025-08-24T01:01:31.131011
+crossing_19_261_10440,analysis_001,line_entrada_principal,line_principal,19,left_to_right,261,10440,1010,1042,person,0.5744096,2025-08-24T01:01:33.614048
+crossing_11_276_11040,analysis_001,line_entrada_principal,line_principal,11,right_to_left,276,11040,1269,858,person,0.61235726,2025-08-24T01:01:35.268429
+crossing_96_287_11480,analysis_001,line_entrada_principal,line_principal,96,right_to_left,287,11480,1213,893,person,0.5680011,2025-08-24T01:01:36.472464
+crossing_39_289_11560,analysis_001,line_entrada_principal,line_principal,39,right_to_left,289,11560,1055,1009,person,0.4631974,2025-08-24T01:01:36.639926

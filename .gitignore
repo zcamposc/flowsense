@@ -8,3 +8,27 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Environment variables (FASE 9: Base de datos)
+.env
+.env.local
+.env.production
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

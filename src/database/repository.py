@@ -11,8 +11,7 @@ from uuid import UUID
 
 from .connection import get_db_manager
 from .models import (
-    VideoAnalysis, Zone, FrameDetection, ZoneEvent, LineCrossingEvent,
-    MinuteStatistics, HourStatistics, AnalysisConfig
+    VideoAnalysis, Zone, ZoneEvent, LineCrossingEvent, AnalysisConfig
 )
 
 logger = logging.getLogger(__name__)
@@ -395,12 +394,10 @@ class StatisticsRepository:
                     va.status,
                     va.total_frames,
                     va.fps,
-                    COUNT(DISTINCT fd.track_id) as total_unique_tracks,
-                    COUNT(fd.id) as total_detections,
+                    COUNT(DISTINCT ze.track_id) as total_unique_tracks,
                     COUNT(ze.id) as total_zone_events,
                     COUNT(lce.id) as total_line_crossings
                 FROM video_analyses va
-                LEFT JOIN frame_detections fd ON va.id = fd.video_analysis_id
                 LEFT JOIN zone_events ze ON va.id = ze.video_analysis_id
                 LEFT JOIN line_crossing_events lce ON va.id = lce.video_analysis_id
                 WHERE va.id = %s
@@ -418,28 +415,9 @@ class StatisticsRepository:
     def get_minute_statistics(analysis_id: UUID, 
                             start_time: Optional[datetime] = None,
                             end_time: Optional[datetime] = None) -> List[Dict[str, Any]]:
-        """Obtener estadísticas por minuto."""
-        try:
-            manager = get_db_manager()
-            with manager.get_cursor() as cursor:
-                query = """
-                SELECT * FROM minute_statistics 
-                WHERE video_analysis_id = %s
-                """
-                params = [analysis_id]
-                
-                if start_time:
-                    query += " AND minute_timestamp >= %s"
-                    params.append(start_time)
-                
-                if end_time:
-                    query += " AND minute_timestamp <= %s"
-                    params.append(end_time)
-                
-                query += " ORDER BY minute_timestamp"
-                cursor.execute(query, tuple(params))
-                results = cursor.fetchall()
-                return [dict(result) for result in results]
-        except Exception as e:
-            logger.error(f"Error al obtener estadísticas por minuto: {e}")
-            return []
+        """
+        DEPRECATED: Tabla minute_statistics eliminada para optimización.
+        Usa get_analysis_summary() para estadísticas agregadas.
+        """
+        logger.warning("⚠️ get_minute_statistics() deprecated - tabla eliminada")
+        return []

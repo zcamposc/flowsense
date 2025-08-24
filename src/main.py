@@ -42,9 +42,9 @@ def process(
         True, help="Mostrar visualización en tiempo real"
     ),
     classes: Optional[str] = typer.Option(
-        "person",
+        None,
         help="Lista de objetos a detectar (ej: person,car,dog). "
-             "Por defecto: person. Ver clases disponibles en: "
+             "Por defecto: detecta TODOS los objetos. Ver clases disponibles en: "
              "https://github.com/ultralytics/ultralytics/blob/main/"
              "ultralytics/cfg/datasets/coco.yaml"
     ),
@@ -56,8 +56,13 @@ def process(
     enable_stats: bool = typer.Option(
         False, help="Habilitar generación de estadísticas por frame"
     ),
-    enable_zones: Optional[str] = typer.Option(
-        None, help="Ruta al archivo JSON de configuración de zonas"
+    enable_zones: bool = typer.Option(
+        False,
+        help="Habilitar análisis de zonas y líneas"
+    ),
+    zones_config: Optional[str] = typer.Option(
+        None,
+        help="Ruta al archivo JSON de configuración de zonas"
     ),
     save_video: bool = typer.Option(
         True, help="Guardar video procesado"
@@ -87,11 +92,12 @@ def process(
         video_abs_path,
         model_abs_path,
         output_abs_path,
-        show=show,
+        show_video=show,
         classes=class_list,
         conf_threshold=conf_threshold,
         enable_stats=enable_stats,
         enable_zones=enable_zones,
+        zones_config=zones_config,
         save_video=save_video,
         enable_database=enable_database
     )

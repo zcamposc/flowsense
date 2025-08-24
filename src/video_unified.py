@@ -24,19 +24,26 @@ except ImportError:
     PERSISTENCE_AVAILABLE = False
     print("[INFO] Módulo de persistencia no disponible.")
 
+# Importar módulo de base de datos
+try:
+    from database import VideoAnalysisService, AnalysisConfig
+    DATABASE_AVAILABLE = True
+except ImportError:
+    DATABASE_AVAILABLE = False
+    print("[INFO] Módulo de base de datos no disponible.")
+
 
 def procesar_video_unificado(
     video_path: str,
     model_path: str,
     output_path: Optional[str] = None,
-    show: bool = True,
-    classes: Optional[list[str]] = None,
+    show_video: bool = True,
+    classes: Optional[List[str]] = None,
     conf_threshold: Optional[float] = None,
-    # Funcionalidades opcionales
     enable_stats: bool = False,
-    enable_zones: Optional[str] = None,
+    enable_zones: bool = False,
+    zones_config: Optional[str] = None,
     save_video: bool = True,
-    # Nueva funcionalidad: Base de datos
     enable_database: bool = False
 ) -> None:
     """
@@ -116,11 +123,11 @@ def procesar_video_unificado(
     # Cargar zonas de interés si está habilitado
     lines, polygons = [], []
     if enable_zones:
-        lines, polygons = cargar_zonas_desde_json(enable_zones)
+        lines, polygons = cargar_zonas_desde_json(zones_config)
 
     # Inicializar módulo de persistencia
     persistence_writer = None
-    zones_config = []
+    zones_config_list = []
     
     if PERSISTENCE_AVAILABLE:
         try:
@@ -131,37 +138,107 @@ def procesar_video_unificado(
             persistence_writer = CSVWriter(csv_output_dir)
             
             # Cargar nombres personalizados de zonas si están disponibles
-            zone_names = cargar_nombres_zonas(enable_zones)
+            zone_names = cargar_nombres_zonas(zones_config)
             
             # Configurar zonas para el escritor
             if enable_zones and polygons:
                 for i, polygon in enumerate(polygons):
                     zone_id = zone_names.get(f"polygon_{i+1}", f"zone_polygon_{i+1}")
-                    zones_config.append((zone_id, "polygon", polygon))
+                    zones_config_list.append((zone_id, "polygon", polygon))
             
             if enable_zones and lines:
                 for i, line in enumerate(lines):
                     line_id = zone_names.get(f"line_{i+1}", f"zone_line_{i+1}")
-                    zones_config.append((line_id, "line", line))
+                    zones_config_list.append((line_id, "line", line))
                     
         except Exception as e:
             print(f"[ERROR] No se pudo inicializar persistencia: {e}")
             persistence_writer = None
-            zones_config = []
+            zones_config_list = []
+
+        # Inicializar módulo de base de datos
+        db_service = None
+        if enable_database and DATABASE_AVAILABLE:
+            try:
+                print("🗄️  Inicializando base de datos...")
+                
+                # Crear configuración de análisis
+                analysis_config = AnalysisConfig(
+                    classes=classes,
+                    conf_threshold=conf_threshold,
+                    enable_stats=enable_stats,
+                    enable_zones=enable_zones,
+                    save_video=save_video
+                )
+                
+                print("🗄️  Configuración creada, inicializando servicio...")
+                
+                # Inicializar servicio de base de datos
+                db_service = VideoAnalysisService()
+                
+                print("🗄️  Servicio creado, iniciando análisis...")
+                
+                # Iniciar análisis en la base de datos
+                analysis_id = db_service.start_analysis(
+                    video_path=video_path,
+                    model_name=os.path.basename(model_path),
+                    config=analysis_config
+                )
+                
+                print(f"🗄️  Base de datos iniciada - Análisis ID: {analysis_id}")
+                
+                # Agregar zonas a la base de datos si están habilitadas
+                zone_name_mapping = {}  # Mapeo de nombres generados a nombres reales
+                
+                if enable_zones and polygons:
+                    print("🗄️  Agregando zonas de polígonos...")
+                    for i, polygon in enumerate(polygons):
+                        zone_name = zone_names.get(f"polygon_{i+1}", f"zone_polygon_{i+1}")
+                        zone_id = db_service.add_zone(
+                            zone_name=zone_name,
+                            zone_type="polygon",
+                            coordinates=polygon
+                        )
+                        # Guardar mapeo: nombre generado -> nombre real
+                        zone_name_mapping[f"polygon_{i+1}"] = zone_name
+                        print(f"🗄️  Zona agregada: {zone_name} (ID: {zone_id})")
+                
+                if enable_zones and lines:
+                    print("🗄️  Agregando zonas de líneas...")
+                    for i, line in enumerate(lines):
+                        line_name = zone_names.get(f"line_{i+1}", f"zone_line_{i+1}")
+                        # Para líneas, crear zona de tipo "line" con las coordenadas originales
+                        zone_id = db_service.add_zone(
+                            zone_name=line_name,
+                            zone_type="line",
+                            coordinates=line
+                        )
+                        # Guardar mapeo: nombre generado -> nombre real
+                        zone_name_mapping[f"line_{i+1}"] = line_name
+                        print(f"🗄️  Línea agregada: {line_name} (ID: {zone_id})")
+                        
+            except Exception as e:
+                print(f"[ERROR] No se pudo inicializar base de datos: {e}")
+                import traceback
+                traceback.print_exc()
+                db_service = None
 
     # Configurar clases a detectar
     if classes is not None:
+        # Si se especifican clases, filtrar solo esas
         class_ids = validate_classes(classes)
+        print(f"🔍 Filtrando solo objetos: {', '.join(classes)}")
     else:
-        # Si no se especifican clases, usar solo 'person' por defecto
-        class_ids = validate_classes(['person'])
+        # Si no se especifican clases, detectar TODOS los objetos
+        class_ids = None  # None significa "todas las clases"
+        print("🔍 Detectando TODOS los objetos disponibles")
 
     # Variables de tracking (siempre activo)
     # Variables de tracking
     id_map = {}
     next_id = 1
     trail = defaultdict(lambda: deque(maxlen=30))
-    unique_person_ids = set()
+    unique_object_ids = set()  # Cambio de nombre para ser más genérico
     
     # Variables de análisis de zonas
     trayectorias: Dict[int, List[Tuple[int, int]]] = {}
@@ -203,7 +280,8 @@ def procesar_video_unificado(
                 boxes = result.boxes
                 for box in boxes:
                     cls = int(box.cls[0])
-                    if cls in class_ids:
+                    # Si no hay filtro de clases, contar todas las detecciones
+                    if class_ids is None or cls in class_ids:
                         total_detections_this_frame += 1
             
             # Procesar resultados (tracking siempre activo)
@@ -217,7 +295,8 @@ def procesar_video_unificado(
                 objetos_detectados = len(boxes)
                 
                 for box, oid, conf, cls in zip(boxes, track_ids, confidences, detected_classes):
-                    if int(cls) in class_ids:
+                    # Si no hay filtro de clases, procesar todas las detecciones
+                    if class_ids is None or int(cls) in class_ids:
                         x1, y1, x2, y2 = map(int, box)
                         cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
                         class_name = get_class_name(int(cls))
@@ -230,7 +309,7 @@ def procesar_video_unificado(
                         # Procesar todos los objetos trackeados
                         if oid in id_map:
                             stable_id = id_map[oid]
-                            unique_person_ids.add(stable_id)
+                            unique_object_ids.add(stable_id)
                             ids_confirmados += 1
                             
                             # Agregar posición actual a la trayectoria
@@ -296,10 +375,58 @@ def procesar_video_unificado(
                                 except Exception as e:
                                     print(f"[ERROR] No se pudo guardar detección: {e}")
                             
+                            # Guardar detección en base de datos si está habilitada
+                            if db_service:
+                                try:
+                                    # Calcular timestamp en milisegundos con validación del FPS
+                                    fps = cap.get(cv2.CAP_PROP_FPS)
+                                    if fps > 0:
+                                        timestamp_ms = int(frame_count * (1000.0 / fps))
+                                    else:
+                                        # Si el FPS es 0 o inválido, usar un valor por defecto
+                                        print(f"[WARNING] FPS inválido ({fps}), usando valor por defecto de 30 FPS")
+                                        timestamp_ms = int(frame_count * (1000.0 / 30.0))
+                                    
+                                    # Convertir numpy types a Python types para compatibilidad con PostgreSQL
+                                    conf_float = float(conf)
+                                    x1_int, y1_int, x2_int, y2_int = int(x1), int(y1), int(x2), int(y2)
+                                    cx_int, cy_int = int(cx), int(cy)
+                                    
+                                    # Guardar detección en la base de datos
+                                    try:
+                                        print(f"[BD] Intentando guardar detección: frame {frame_count}, track {stable_id}, class {class_name}")
+                                        result = db_service.save_frame_detection(
+                                            frame_number=frame_count,
+                                            timestamp_ms=timestamp_ms,
+                                            track_id=stable_id,
+                                            class_name=class_name,
+                                            confidence=conf_float,
+                                            bbox=[x1_int, y1_int, x2_int, y2_int],
+                                            center=[cx_int, cy_int]
+                                        )
+                                        if result:
+                                            print(f"[BD] ✅ Detección guardada exitosamente")
+                                        else:
+                                            print(f"[BD] ❌ Error al guardar detección")
+                                    except Exception as e:
+                                        print(f"[ERROR] No se pudo guardar detección en BD: {e}")
+                                except Exception as e:
+                                    print(f"[ERROR] Error general al procesar detección: {e}")
+                            
                             # Análisis de zonas si está habilitado
                             if enable_zones:
-                                # Calcular timestamp en milisegundos
-                                timestamp_ms = int(frame_count * (1000 / cap.get(cv2.CAP_PROP_FPS)))
+                                # Calcular timestamp en milisegundos con validación del FPS
+                                fps = cap.get(cv2.CAP_PROP_FPS)
+                                if fps > 0:
+                                    timestamp_ms = int(frame_count * (1000.0 / fps))
+                                else:
+                                    # Si el FPS es 0 o inválido, usar un valor por defecto
+                                    print(f"[WARNING] FPS inválido ({fps}), usando valor por defecto de 30 FPS")
+                                    timestamp_ms = int(frame_count * (1000.0 / 30.0))
+                                
+                                # DEBUG: Verificar que el timestamp se esté calculando correctamente
+                                if frame_count % 50 == 0:  # Log cada 50 frames
+                                    print(f"[DEBUG] Frame {frame_count}: FPS={fps}, timestamp_ms={timestamp_ms}")
                                 
                                 analizar_objeto_con_zonas(
                                     frame, box, stable_id, trayectorias,
@@ -308,12 +435,14 @@ def procesar_video_unificado(
                                     frame_number=frame_count,
                                     timestamp_ms=timestamp_ms,
                                     persistence_writer=persistence_writer,
-                                    zones_config=zones_config,
-                                    conf=conf
+                                    zones_config=zones_config_list,
+                                    conf=conf,
+                                    db_service=db_service, # Pasar el servicio de base de datos
+                                    zone_name_mapping=zone_name_mapping # Pasar el mapeo de nombres
                                 )
                 
             # Mostrar estadísticas en tiempo real
-            stats_text = f"Frame: {frame_count} | Det: {objetos_detectados} | IDs: {len(unique_person_ids)}"
+            stats_text = f"Frame: {frame_count} | Det: {objetos_detectados} | IDs: {len(unique_object_ids)}"
             cv2.putText(
                 frame, stats_text,
                 (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
@@ -330,7 +459,7 @@ def procesar_video_unificado(
                 cruzaron_lineas_valor = len(ids_cruzaron_linea) if enable_zones else 0
                 
                 stats_file.write(f"{frame_count}\t{objetos_detectados}\t"
-                               f"{ids_confirmados}\t{len(unique_person_ids)}\t"
+                               f"{ids_confirmados}\t{len(unique_object_ids)}\t"
                                f"{en_zonas_valor}\t{cruzaron_lineas_valor}\n")
 
             # Guardar frame en video si está habilitado
@@ -338,7 +467,7 @@ def procesar_video_unificado(
                 writer.write(frame)
                 
             # Mostrar frame si está habilitado
-            if show:
+            if show_video:
                 cv2.imshow('Análisis de Video Unificado', frame)
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
@@ -360,6 +489,38 @@ def procesar_video_unificado(
             persistence_writer.close()
         except Exception as e:
             print(f"[ERROR] No se pudo cerrar persistencia: {e}")
+    
+    # Finalizar análisis en base de datos si está habilitada
+    if db_service:
+        try:
+            # Obtener información del video para completar el análisis
+            total_frames = frame_count
+            fps = cap.get(cv2.CAP_PROP_FPS) if cap else 30.0
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) if cap else 1920
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) if cap else 1080
+            
+            # Completar análisis en la base de datos
+            db_service.complete_analysis(
+                total_frames=total_frames,
+                fps=fps,
+                width=width,
+                height=height
+            )
+            
+            # Obtener resumen de la base de datos
+            summary = db_service.get_analysis_summary()
+            if summary:
+                print(f"🗄️  Base de datos - Análisis completado:")
+                print(f"   • Total detecciones: {summary.get('total_detections', 0)}")
+                print(f"   • Total eventos de zona: {summary.get('total_zone_events', 0)}")
+                print(f"   • Total cruces de línea: {summary.get('total_line_crossings', 0)}")
+            
+            # Cerrar servicio de base de datos
+            db_service.close()
+            print("🗄️  Base de datos cerrada correctamente")
+            
+        except Exception as e:
+            print(f"[ERROR] No se pudo finalizar análisis en BD: {e}")
     
     # Resumen final
     print(f"\n{'='*60}")
@@ -384,9 +545,12 @@ def procesar_video_unificado(
     print(f"🎬 Total de frames procesados: {frame_count}")
     
     print(f"\n🔍 RESUMEN DE TRACKING:")
-    print(f"   • IDs únicos confirmados: {len(unique_person_ids)}")
+    print(f"   • IDs únicos confirmados: {len(unique_object_ids)}")
     print(f"   • Objetos detectados inicialmente: {len(id_map)}")
-    print(f"   • Objetos confirmados (5+ frames): {len(unique_person_ids)}")
+    if class_ids is None:
+        print(f"   • Objetos confirmados (todos los tipos): {len(unique_object_ids)}")
+    else:
+        print(f"   • Objetos confirmados (tipos filtrados): {len(unique_object_ids)}")
     
     if enable_zones:
         print(f"\n📍 RESUMEN DE ZONAS:")
@@ -411,7 +575,9 @@ def analizar_objeto_con_zonas(
     timestamp_ms: int = 0,
     persistence_writer = None,
     zones_config: List[Tuple] = None,
-    conf: float = 0.0 # Added conf parameter
+    conf: float = 0.0, # Added conf parameter
+    db_service = None,  # Servicio de base de datos
+    zone_name_mapping: Dict[str, str] = None # Mapeo de nombres personalizados
 ) -> None:
     """
     Analiza un objeto detectado: posición, trayectoria y eventos de zonas.
@@ -456,6 +622,46 @@ def analizar_objeto_con_zonas(
                             )
                         except Exception as e:
                             print(f"[ERROR] No se pudo guardar evento: {e}")
+            
+            # Guardar evento de zona en base de datos si está habilitada
+            if db_service:
+                try:
+                    # Buscar el ID de zona correspondiente
+                    zone_id = None
+                    for zone_name, zone_type, zone_coords in zones_config or []:
+                        if zone_type == "polygon" and zone_coords == poly:
+                            # Usar el mapeo para obtener el nombre real de la zona
+                            real_zone_name = zone_name_mapping.get(f"polygon_{i+1}")
+                            if real_zone_name:
+                                zone_id = db_service.get_zone_id_by_name(real_zone_name)
+                            break
+                    
+                    if zone_id:
+                        # Convertir numpy types a Python types
+                        conf_float = float(conf)
+                        cx_int, cy_int = int(cx), int(cy)
+                        
+                        # Guardar evento de entrada en base de datos
+                        try:
+                            # Usar el mapeo para obtener el nombre real de la zona
+                            real_zone_name = zone_name_mapping.get(f"polygon_{i+1}")
+                            if real_zone_name:
+                                zone_id = db_service.get_zone_id_by_name(real_zone_name)
+                                if zone_id:
+                                    db_service.save_zone_event(
+                                        zone_id=zone_id,
+                                        track_id=track_id,
+                                        event_type="enter",
+                                        class_name=class_name,
+                                        confidence=conf_float,
+                                        position=[cx_int, cy_int],
+                                        timestamp_ms=timestamp_ms
+                                    )
+                                    print(f"[BD] Evento de zona guardado: entrada en {real_zone_name}")
+                        except Exception as e:
+                            print(f"[ERROR] No se pudo guardar evento de zona en BD: {e}")
+                except Exception as e:
+                    print(f"[ERROR] Error general al procesar evento de zona: {e}")
                             
         elif not is_in_zone and track_id in ids_en_zona and f"polygon_{i+1}" in ids_en_zona[track_id]:
             # SALIDA de zona
@@ -484,6 +690,37 @@ def analizar_objeto_con_zonas(
                                 print(f"[CSV] Evento de zona guardado: exit para track {track_id}")
                         except Exception as e:
                             print(f"[ERROR] Error al guardar evento de salida: {e}")
+            
+            # Guardar evento de salida de zona en base de datos si está habilitada
+            if db_service:
+                try:
+                    # Buscar el ID de zona correspondiente
+                    zone_id = None
+                    for zone_name, zone_type, zone_coords in zones_config or []:
+                        if zone_type == "polygon" and zone_coords == poly:
+                            # Usar el mapeo para obtener el nombre real de la zona
+                            real_zone_name = zone_name_mapping.get(f"polygon_{i+1}")
+                            if real_zone_name:
+                                zone_id = db_service.get_zone_id_by_name(real_zone_name)
+                            break
+                    
+                    if zone_id:
+                        # Convertir numpy types a Python types
+                        conf_float = float(conf)
+                        cx_int, cy_int = int(cx), int(cy)
+                        
+                        db_service.save_zone_event(
+                            zone_id=zone_id,
+                            track_id=track_id,
+                            event_type="exit",
+                            class_name=class_name,
+                            confidence=conf_float,
+                            position=[cx_int, cy_int],
+                            timestamp_ms=timestamp_ms
+                        )
+                        print(f"[BD] Evento de zona guardado: exit para track {track_id}")
+                except Exception as e:
+                    print(f"[ERROR] No se pudo guardar evento de salida en BD: {e}")
 
     # Detectar cruce de líneas
     if len(pts) > 1:
@@ -517,6 +754,41 @@ def analizar_objeto_con_zonas(
                                 )
                             except Exception as e:
                                 print(f"[ERROR] No se pudo guardar cruce: {e}")
+                
+                # Guardar cruce de línea en base de datos si está habilitada
+                if db_service:
+                    try:
+                        # Buscar el ID de línea correspondiente
+                        zone_id = None
+                        for zone_name, zone_type, zone_coords in zones_config or []:
+                            if zone_type == "line" and zone_coords == linea:
+                                # Usar el mapeo para obtener el nombre real de la línea
+                                real_line_name = zone_name_mapping.get(f"line_{i+1}")
+                                if real_line_name:
+                                    zone_id = db_service.get_zone_id_by_name(real_line_name)
+                                break
+                        
+                        if zone_id:
+                            # Determinar dirección del cruce
+                            prev_x, prev_y = pts[-2]
+                            direction = "left_to_right" if cx > prev_x else "right_to_left"
+                            
+                            # Convertir numpy types a Python types
+                            conf_float = float(conf)
+                            cx_int, cy_int = int(cx), int(cy)
+                            
+                            db_service.save_line_crossing(
+                                zone_id=zone_id,
+                                track_id=track_id,
+                                direction=direction,
+                                class_name=class_name,
+                                confidence=conf_float,
+                                position=[cx_int, cy_int],
+                                timestamp_ms=timestamp_ms
+                            )
+                            print(f"[BD] Cruce de línea guardado: {direction} para track {track_id}")
+                    except Exception as e:
+                        print(f"[ERROR] No se pudo guardar cruce de línea en BD: {e}")
 
 
 def dibujar_zonas(

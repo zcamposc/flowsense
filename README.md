@@ -7,7 +7,8 @@ Sistema completo de detección y análisis de objetos en videos usando YOLOv8 co
 ## ✨ Características Principales
 
 ### 🎯 **Detección Mejorada**
-- **Sistema de confirmación**: Solo asigna IDs a objetos que aparecen en 5+ frames consecutivos
+- **Detección universal**: Por defecto detecta TODOS los objetos disponibles (80 clases COCO)
+- **Filtrado opcional**: Usar `--classes` para detectar solo objetos específicos
 - **Tracking persistente**: Mantiene identidad de objetos entre frames
 - **Umbral de confianza configurable**: Por defecto usa configuración de YOLO para máxima detección
 - **Filtrado inteligente**: Reduce falsos positivos y falsos negativos
@@ -39,6 +40,18 @@ uv run src/main.py \
     --video-path "data/videos/video.mp4" \
     --model-path "models/yolov8n.pt"
 
+# Detectar solo personas y coches
+uv run src/main.py \
+    --video-path "data/videos/video.mp4" \
+    --model-path "models/yolov8n.pt" \
+    --classes "person,car"
+
+# Detectar solo animales
+uv run src/main.py \
+    --video-path "data/videos/video.mp4" \
+    --model-path "models/yolov8n.pt" \
+    --classes "dog,cat,bird"
+
 # Con estadísticas por frame
 uv run src/main.py \
     --video-path "data/videos/video.mp4" \
@@ -68,7 +81,7 @@ uv run src/main.py \
 | `--model-path` | str | ✅ | Ruta al modelo YOLO (ej: yolov8n.pt) |
 | `--output-path` | str | ❌ | Ruta para guardar el video de salida |
 | `--show` | bool | ❌ | Mostrar visualización en tiempo real (default: True) |
-| `--classes` | str | ❌ | Lista de objetos a detectar (ej: person,car,dog). Por defecto: person. Ver clases disponibles en: https://github.com/ultralytics/ultralytics/blob/main/ultralytics/cfg/datasets/coco.yaml |
+| `--classes` | str | ❌ | Lista de objetos a detectar (ej: person,car,dog). Por defecto: detecta TODOS los objetos. Ver clases disponibles en: https://github.com/ultralytics/ultralytics/blob/main/ultralytics/cfg/datasets/coco.yaml |
 | `--conf-threshold` | float | ❌ | Umbral de confianza para detecciones (0.0-1.0). Si no se especifica, usa la configuración por defecto de YOLO |
 | `--enable-stats` | bool | ❌ | Habilitar generación de estadísticas por frame |
 | `--enable-zones` | str | ❌ | Ruta al archivo JSON de configuración de zonas |

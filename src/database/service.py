@@ -1,323 +1,362 @@
 """
-Servicio de base de datos para integración con el sistema de análisis de video.
-Maneja la lógica de negocio y la integración con el sistema existente.
+Servicio principal de base de datos para análisis de video.
+Maneja todas las operaciones CRUD y consultas de la base de datos.
 """
 
-import logging
 import json
-from typing import List, Optional, Dict, Any, Tuple
+import logging
 from datetime import datetime
+from typing import Optional, Dict, Any, List
 from uuid import UUID
-import cv2
-import numpy as np
 
+from .connection import get_db_connection
 from .models import (
-    VideoAnalysis, Zone, FrameDetection, ZoneEvent, LineCrossingEvent,
-    ZoneType, EventType, CrossingDirection, AnalysisStatus, AnalysisConfig
+    VideoAnalysis, AnalysisConfig, Zone,
+    ZoneEvent, LineCrossingEvent
 )
-from .repository import (
-    VideoAnalysisRepository, ZoneRepository, FrameDetectionRepository,
-    ZoneEventRepository, LineCrossingRepository, StatisticsRepository
-)
-from .connection import initialize_database, get_db_manager
 
+# Configurar logging
 logger = logging.getLogger(__name__)
 
 
 class VideoAnalysisService:
-    """Servicio principal para análisis de video con base de datos."""
+    """Servicio para manejar análisis de video en TimescaleDB."""
     
     def __init__(self):
-        """Inicializar el servicio."""
-        self.video_repo = VideoAnalysisRepository()
-        self.zone_repo = ZoneRepository()
-        self.detection_repo = FrameDetectionRepository()
-        self.zone_event_repo = ZoneEventRepository()
-        self.line_crossing_repo = LineCrossingRepository()
-        self.stats_repo = StatisticsRepository()
-        
-        # Estado del análisis actual
+        """Inicializa el servicio de base de datos."""
+        self.db = get_db_connection()
         self.current_analysis_id: Optional[UUID] = None
-        self.zones_cache: Dict[str, Zone] = {}
-        self.track_zone_status: Dict[int, Dict[UUID, str]] = {}  # track_id -> {zone_id: status}
-    
-    def initialize_database(self) -> bool:
-        """Inicializar la base de datos."""
-        return initialize_database()
+        self.analysis_start_time: Optional[datetime] = None
     
     def start_analysis(self, video_path: str, model_name: str, 
-                      config: AnalysisConfig) -> Optional[UUID]:
-        """Iniciar un nuevo análisis de video."""
+                      config: Optional[AnalysisConfig] = None) -> UUID:
+        """Inicia un nuevo análisis de video."""
         try:
-            # Crear registro de análisis
+            cursor = self.db.get_cursor()
+            if not cursor:
+                raise Exception("No se pudo obtener cursor de base de datos")
+            
+            start_time = datetime.now()
             analysis = VideoAnalysis(
                 video_path=video_path,
                 model_name=model_name,
-                analysis_config=config.dict(),
-                status=AnalysisStatus.RUNNING
+                analysis_config=config,
+                status="running",
+                started_at=start_time
             )
             
-            analysis_id = self.video_repo.create_analysis(analysis)
+            # Almacenar el timestamp de inicio para usar en las detecciones
+            self.analysis_start_time = start_time
+            
+            cursor.execute("""
+                INSERT INTO video_analyses (
+                    video_path, model_name, analysis_config, status, started_at
+                ) VALUES (%s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                analysis.video_path,
+                analysis.model_name,
+                json.dumps(analysis.analysis_config.dict()) if analysis.analysis_config else None,
+                analysis.status,
+                analysis.started_at
+            ))
+            
+            result = cursor.fetchone()
+            logger.info(f"DEBUG: fetchone() result type: {type(result)}")
+            logger.info(f"DEBUG: fetchone() result: {result}")
+            if isinstance(result, dict):
+                analysis_id = result.get('id')
+            else:
+                analysis_id = result[0] if result else None
             if not analysis_id:
-                logger.error("No se pudo crear el análisis")
-                return None
-            
+                raise Exception("No se pudo obtener ID del análisis")
             self.current_analysis_id = analysis_id
-            logger.info(f"Análisis iniciado con ID: {analysis_id}")
             
-            # Cargar zonas si están configuradas
-            if config.enable_zones:
-                self._load_zones_from_config(config.enable_zones)
+            self.db.commit()
+            logger.info(f"✅ Análisis iniciado con ID: {analysis_id}")
             
             return analysis_id
             
         except Exception as e:
-            logger.error(f"Error al iniciar análisis: {e}")
-            return None
-    
-    def _load_zones_from_config(self, zones_file: str) -> None:
-        """Cargar zonas desde archivo de configuración."""
-        try:
-            with open(zones_file, 'r') as f:
-                zones_data = json.load(f)
-            
-            # Cargar líneas
-            for i, line_coords in enumerate(zones_data.get('lines', [])):
-                zone = Zone(
-                    video_analysis_id=self.current_analysis_id,
-                    zone_name=f"line_{i+1}",
-                    zone_type=ZoneType.LINE,
-                    coordinates=line_coords
-                )
-                zone_id = self.zone_repo.create_zone(zone)
-                if zone_id:
-                    zone.id = zone_id
-                    self.zones_cache[zone.zone_name] = zone
-            
-            # Cargar polígonos
-            for i, polygon_coords in enumerate(zones_data.get('polygons', [])):
-                zone = Zone(
-                    video_analysis_id=self.current_analysis_id,
-                    zone_name=f"polygon_{i+1}",
-                    zone_type=ZoneType.POLYGON,
-                    coordinates=polygon_coords
-                )
-                zone_id = self.zone_repo.create_zone(zone)
-                if zone_id:
-                    zone.id = zone_id
-                    self.zones_cache[zone.zone_name] = zone
-            
-            logger.info(f"Cargadas {len(self.zones_cache)} zonas")
-            
-        except Exception as e:
-            logger.error(f"Error al cargar zonas: {e}")
-    
-    def process_frame_detections(self, frame_number: int, timestamp_ms: int,
-                               detections: List[Dict[str, Any]]) -> None:
-        """Procesar detecciones de un frame."""
-        if not self.current_analysis_id:
-            logger.error("No hay análisis activo")
-            return
-        
-        try:
-            # Crear detecciones en lote
-            frame_detections = []
-            for detection in detections:
-                frame_detection = FrameDetection(
-                    video_analysis_id=self.current_analysis_id,
-                    frame_number=frame_number,
-                    timestamp_ms=timestamp_ms,
-                    track_id=detection['track_id'],
-                    class_name=detection['class_name'],
-                    confidence=detection['confidence'],
-                    bbox_x1=detection['bbox'][0],
-                    bbox_y1=detection['bbox'][1],
-                    bbox_x2=detection['bbox'][2],
-                    bbox_y2=detection['bbox'][3],
-                    center_x=detection['center'][0],
-                    center_y=detection['center'][1]
-                )
-                frame_detections.append(frame_detection)
-            
-            # Guardar detecciones
-            if frame_detections:
-                self.detection_repo.create_bulk_detections(frame_detections)
-            
-            # Analizar eventos de zonas
-            self._analyze_zone_events(frame_number, timestamp_ms, detections)
-            
-        except Exception as e:
-            logger.error(f"Error al procesar detecciones: {e}")
-    
-    def _analyze_zone_events(self, frame_number: int, timestamp_ms: int,
-                           detections: List[Dict[str, Any]]) -> None:
-        """Analizar eventos de zonas para las detecciones del frame."""
-        for detection in detections:
-            track_id = detection['track_id']
-            center_x, center_y = detection['center']
-            
-            # Inicializar estado del track si no existe
-            if track_id not in self.track_zone_status:
-                self.track_zone_status[track_id] = {}
-            
-            # Analizar cada zona
-            for zone in self.zones_cache.values():
-                if zone.zone_type == ZoneType.POLYGON:
-                    self._analyze_polygon_zone(zone, track_id, center_x, center_y,
-                                             frame_number, timestamp_ms)
-                elif zone.zone_type == ZoneType.LINE:
-                    self._analyze_line_zone(zone, track_id, center_x, center_y,
-                                          frame_number, timestamp_ms)
-    
-    def _analyze_polygon_zone(self, zone: Zone, track_id: int, center_x: int,
-                            center_y: int, frame_number: int, 
-                            timestamp_ms: int) -> None:
-        """Analizar eventos de zona tipo polígono."""
-        from utils.geometry import punto_en_poligono
-        
-        current_status = self.track_zone_status[track_id].get(zone.id, 'outside')
-        is_inside = punto_en_poligono((center_x, center_y), zone.coordinates)
-        
-        # Detectar cambios de estado
-        if is_inside and current_status == 'outside':
-            # Entrada a zona
-            event = ZoneEvent(
-                video_analysis_id=self.current_analysis_id,
-                zone_id=zone.id,
-                track_id=track_id,
-                event_type=EventType.ENTER,
-                frame_number=frame_number,
-                timestamp_ms=timestamp_ms,
-                position_x=center_x,
-                position_y=center_y
-            )
-            self.zone_event_repo.create_zone_event(event)
-            self.track_zone_status[track_id][zone.id] = 'inside'
-            logger.info(f"Track {track_id} entró en zona {zone.zone_name}")
-            
-        elif not is_inside and current_status == 'inside':
-            # Salida de zona
-            event = ZoneEvent(
-                video_analysis_id=self.current_analysis_id,
-                zone_id=zone.id,
-                track_id=track_id,
-                event_type=EventType.EXIT,
-                frame_number=frame_number,
-                timestamp_ms=timestamp_ms,
-                position_x=center_x,
-                position_y=center_y
-            )
-            self.zone_event_repo.create_zone_event(event)
-            self.track_zone_status[track_id][zone.id] = 'outside'
-            logger.info(f"Track {track_id} salió de zona {zone.zone_name}")
-    
-    def _analyze_line_zone(self, zone: Zone, track_id: int, center_x: int,
-                          center_y: int, frame_number: int, 
-                          timestamp_ms: int) -> None:
-        """Analizar eventos de zona tipo línea."""
-        # Obtener posición anterior del track
-        # Nota: En una implementación real, necesitarías mantener un historial
-        # de posiciones para detectar cruces de línea
-        
-        # Por simplicidad, aquí solo detectamos si el punto está cerca de la línea
-        # En una implementación completa, necesitarías:
-        # 1. Mantener historial de posiciones del track
-        # 2. Detectar cruces usando la función cruza_linea
-        # 3. Determinar dirección del cruce
-        
-        # Ejemplo simplificado:
-        line_start = zone.coordinates[0]
-        line_end = zone.coordinates[1]
-        
-        # Calcular distancia a la línea
-        distance = self._distance_to_line(center_x, center_y, line_start, line_end)
-        
-        if distance < 10:  # Umbral de proximidad
-            # Aquí detectarías el cruce real usando historial de posiciones
-            pass
-    
-    def _distance_to_line(self, x: int, y: int, line_start: List[int], 
-                         line_end: List[int]) -> float:
-        """Calcular distancia de un punto a una línea."""
-        x1, y1 = line_start
-        x2, y2 = line_end
-        
-        # Fórmula de distancia punto-línea
-        numerator = abs((y2-y1)*x - (x2-x1)*y + x2*y1 - y2*x1)
-        denominator = ((y2-y1)**2 + (x2-x1)**2)**0.5
-        
-        return numerator / denominator if denominator > 0 else float('inf')
+            self.db.rollback()
+            logger.error(f"❌ Error al iniciar análisis: {e}")
+            raise
     
     def complete_analysis(self, total_frames: int, fps: float, 
                          width: int, height: int) -> bool:
-        """Completar el análisis de video."""
+        """Completa un análisis de video."""
         if not self.current_analysis_id:
-            logger.error("No hay análisis activo")
+            logger.error("❌ No hay análisis activo")
             return False
         
         try:
-            # Actualizar información del análisis
-            success = self.video_repo.update_analysis_status(
-                self.current_analysis_id,
-                AnalysisStatus.COMPLETED.value,
-                datetime.now()
-            )
+            cursor = self.db.get_cursor()
+            if not cursor:
+                raise Exception("No se pudo obtener cursor de base de datos")
             
-            if success:
-                logger.info(f"Análisis {self.current_analysis_id} completado")
-                self.current_analysis_id = None
-                self.zones_cache.clear()
-                self.track_zone_status.clear()
+            cursor.execute("""
+                UPDATE video_analyses 
+                SET status = 'completed', 
+                    total_frames = %s,
+                    fps = %s,
+                    resolution_width = %s,
+                    resolution_height = %s,
+                    completed_at = %s
+                WHERE id = %s
+            """, (
+                total_frames, fps, width, height, 
+                datetime.now(), self.current_analysis_id
+            ))
             
-            return success
+            self.db.commit()
+            logger.info(f"✅ Análisis completado: {total_frames} frames")
+            return True
             
         except Exception as e:
-            logger.error(f"Error al completar análisis: {e}")
+            self.db.rollback()
+            logger.error(f"❌ Error al completar análisis: {e}")
             return False
     
-    def get_analysis_summary(self, analysis_id: UUID) -> Optional[Dict[str, Any]]:
-        """Obtener resumen de un análisis."""
-        return self.stats_repo.get_analysis_summary(analysis_id)
-    
-    def get_zone_events(self, analysis_id: UUID, zone_name: Optional[str] = None,
-                       track_id: Optional[int] = None) -> List[ZoneEvent]:
-        """Obtener eventos de zona."""
-        zone_id = None
-        if zone_name:
-            # Buscar zona por nombre
-            zones = self.zone_repo.get_zones_by_analysis(analysis_id)
-            for zone in zones:
-                if zone.zone_name == zone_name:
-                    zone_id = zone.id
-                    break
+    def add_zone(self, zone_name: str, zone_type: str, 
+                 coordinates: List[List[float]]) -> Optional[UUID]:
+        """Agrega una zona al análisis actual."""
+        if not self.current_analysis_id:
+            logger.error("❌ No hay análisis activo")
+            return None
         
-        return self.zone_event_repo.get_zone_events(analysis_id, zone_id, track_id)
+        try:
+            logger.info(f"🔍 [DEBUG] Intentando agregar zona: {zone_name} ({zone_type})")
+            logger.info(f"🔍 [DEBUG] video_analysis_id: {self.current_analysis_id}")
+            logger.info(f"🔍 [DEBUG] coordinates: {coordinates}")
+            
+            cursor = self.db.get_cursor()
+            if not cursor:
+                raise Exception("No se pudo obtener cursor de base de datos")
+            
+            zone = Zone(
+                video_analysis_id=self.current_analysis_id,
+                zone_name=zone_name,
+                zone_type=zone_type,
+                coordinates=coordinates
+            )
+            
+            logger.info(f"🔍 [DEBUG] Zone object created: {zone}")
+            
+            cursor.execute("""
+                INSERT INTO zones (video_analysis_id, zone_name, zone_type, coordinates)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id
+            """, (
+                str(zone.video_analysis_id) if zone.video_analysis_id else None,
+                zone.zone_name,
+                zone.zone_type,
+                json.dumps(zone.coordinates)
+            ))
+            
+            result = cursor.fetchone()
+            logger.info(f"🔍 [DEBUG] fetchone result: {result}")
+            if isinstance(result, dict):
+                zone_id = result.get('id')
+            else:
+                zone_id = result[0] if result else None
+            if not zone_id:
+                raise Exception("No se pudo obtener ID de la zona")
+            self.db.commit()
+            
+            logger.info(f"✅ Zona agregada: {zone_name} ({zone_type}) - ID: {zone_id}")
+            return zone_id
+            
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"❌ Error al agregar zona: {e}")
+            return None
     
-    def get_line_crossings(self, analysis_id: UUID, zone_name: Optional[str] = None,
-                          track_id: Optional[int] = None) -> List[LineCrossingEvent]:
-        """Obtener cruces de línea."""
-        zone_id = None
-        if zone_name:
-            # Buscar zona por nombre
-            zones = self.zone_repo.get_zones_by_analysis(analysis_id)
-            for zone in zones:
-                if zone.zone_name == zone_name:
-                    zone_id = zone.id
-                    break
+    def save_frame_detection(self, frame_number: int, timestamp_ms: int,
+                           track_id: int, class_name: str, confidence: float,
+                           bbox: List[int], center: List[int]) -> bool:
+        """
+        DEPRECATED: No guarda detecciones individuales para optimizar base de datos.
+        Solo los eventos significativos (zone_events, line_crossing_events) se guardan.
+        """
+        # No hacer nada - tabla frame_detections eliminada para optimización
+        logger.debug(f"🔄 Frame detection no guardada (optimización): frame {frame_number}, track {track_id}")
+        return True
+    
+    def save_zone_event(self, zone_id: UUID, track_id: int, event_type: str,
+                        class_name: str, confidence: float, 
+                        position: List[int], timestamp_ms: int) -> bool:
+        """Guarda un evento de zona."""
+        if not self.current_analysis_id:
+            logger.error("❌ No hay análisis activo")
+            return False
         
-        return self.line_crossing_repo.get_line_crossings(analysis_id, zone_id, track_id)
+        try:
+            logger.info(f"�� [DEBUG] Intentando guardar evento de zona: {event_type} para track {track_id}")
+            logger.info(f"🔍 [DEBUG] zone_id: {zone_id}, class_name: {class_name}")
+            
+            cursor = self.db.get_cursor()
+            if not cursor:
+                raise Exception("No se pudo obtener cursor de base de datos")
+            
+            # Crear instancia del modelo con timestamp de inicio
+            event = ZoneEvent.from_event_data(
+                video_analysis_id=self.current_analysis_id,
+                zone_id=zone_id,
+                track_id=track_id,
+                event_type=event_type,
+                class_name=class_name,
+                confidence=confidence,
+                position=position,
+                timestamp_ms=timestamp_ms,
+                analysis_start_time=self.analysis_start_time
+            )
+            
+            logger.info(f"🔍 [DEBUG] ZoneEvent object created: {event}")
+            
+            cursor.execute("""
+                INSERT INTO zone_events (
+                    time, video_time_ms, video_analysis_id, zone_id, track_id, event_type,
+                    class_name, confidence, position_x, position_y
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                event.time,
+                event.video_time_ms,
+                str(event.video_analysis_id) if event.video_analysis_id else None,
+                str(event.zone_id) if event.zone_id else None,
+                event.track_id,
+                event.event_type,
+                event.class_name,
+                event.confidence,
+                event.position_x,
+                event.position_y
+            ))
+            
+            self.db.commit()
+            logger.info(f"✅ Evento de zona guardado: {event_type} para track {track_id}")
+            return True
+            
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"❌ Error al guardar evento de zona: {e}")
+            return False
     
-    def get_minute_statistics(self, analysis_id: UUID, 
-                            start_time: Optional[datetime] = None,
-                            end_time: Optional[datetime] = None) -> List[Dict[str, Any]]:
-        """Obtener estadísticas por minuto."""
-        return self.stats_repo.get_minute_statistics(analysis_id, start_time, end_time)
+    def save_line_crossing(self, zone_id: UUID, track_id: int, direction: str,
+                           class_name: str, confidence: float, 
+                           position: List[int], timestamp_ms: int) -> bool:
+        """Guarda un cruce de línea."""
+        if not self.current_analysis_id:
+            logger.error("❌ No hay análisis activo")
+            return False
+        
+        try:
+            logger.info(f"🔍 [DEBUG] Intentando guardar cruce de línea: {direction} para track {track_id}")
+            logger.info(f"🔍 [DEBUG] zone_id: {zone_id}, class_name: {class_name}")
+            
+            cursor = self.db.get_cursor()
+            if not cursor:
+                raise Exception("No se pudo obtener cursor de base de datos")
+            
+            # Crear instancia del modelo usando el método correcto con timestamp de inicio
+            event = LineCrossingEvent.from_event_data(
+                video_analysis_id=self.current_analysis_id,
+                zone_id=zone_id,
+                timestamp_ms=timestamp_ms,
+                track_id=track_id,
+                direction=direction,
+                class_name=class_name,
+                confidence=confidence,
+                position=position,
+                analysis_start_time=self.analysis_start_time
+            )
+            
+            logger.info(f"🔍 [DEBUG] LineCrossingEvent object created: {event}")
+            
+            # Consulta SQL ajustada para el esquema de TimescaleDB
+            cursor.execute("""
+                INSERT INTO line_crossing_events (
+                    time, video_time_ms, video_analysis_id, zone_id, track_id, direction,
+                    class_name, confidence, position_x, position_y
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                event.time,
+                event.video_time_ms,
+                str(event.video_analysis_id) if event.video_analysis_id else None,
+                str(event.zone_id) if event.zone_id else None,
+                event.track_id,
+                event.direction,
+                event.class_name,
+                event.confidence,
+                event.position_x,
+                event.position_y
+            ))
+            
+            self.db.commit()
+            logger.info(f"✅ Cruce de línea guardado: {direction} para track {track_id}")
+            return True
+            
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"❌ Error al guardar cruce de línea: {e}")
+            return False
+    
+    def get_zone_id_by_name(self, zone_name: str) -> Optional[UUID]:
+        """Obtiene el ID de una zona por su nombre."""
+        if not self.current_analysis_id:
+            logger.error("❌ No hay análisis activo")
+            return None
+        
+        try:
+            cursor = self.db.get_cursor()
+            if not cursor:
+                raise Exception("No se pudo obtener cursor de base de datos")
+            
+            cursor.execute("""
+                SELECT id FROM zones 
+                WHERE video_analysis_id = %s AND zone_name = %s
+            """, (self.current_analysis_id, zone_name))
+            
+            result = cursor.fetchone()
+            if result:
+                return result['id']
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Error al obtener ID de zona '{zone_name}': {e}")
+            return None
+    
+    def get_analysis_summary(self) -> Optional[Dict[str, Any]]:
+        """Obtiene un resumen del análisis actual."""
+        if not self.current_analysis_id:
+            logger.error("❌ No hay análisis activo")
+            return None
+        
+        try:
+            cursor = self.db.get_cursor()
+            if not cursor:
+                raise Exception("No se pudo obtener cursor de base de datos")
+            
+            cursor.execute("""
+                SELECT * FROM analysis_summary 
+                WHERE id = %s
+            """, (self.current_analysis_id,))
+            
+            result = cursor.fetchone()
+            if result:
+                return dict(result)
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Error al obtener resumen: {e}")
+            return None
+    
+    def close(self):
+        """Cierra la conexión a la base de datos."""
+        if self.db:
+            self.db.disconnect()
+            logger.info("🔌 Conexión a base de datos cerrada")
 
 
-# Instancia global del servicio
-video_service = VideoAnalysisService()
-
-
+# Función de conveniencia para obtener el servicio
 def get_video_service() -> VideoAnalysisService:
-    """Obtener la instancia global del servicio de video."""
-    return video_service
+    """Obtiene una instancia del servicio de análisis de video."""
+    return VideoAnalysisService()

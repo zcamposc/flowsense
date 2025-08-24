@@ -1,28 +1,9 @@
 """
-Módulo de base de datos para el sistema de series de tiempo.
-Proporciona almacenamiento persistente para análisis de video.
+Módulo de base de datos para la FASE 9: Base de Datos de Series de Tiempo.
+Proporciona funcionalidades para almacenar y consultar datos de análisis de video.
 """
 
-from .models import (
-    VideoAnalysis, Zone, FrameDetection, ZoneEvent, LineCrossingEvent,
-    ZoneType, EventType, CrossingDirection, AnalysisStatus, AnalysisConfig
-)
-from .service import VideoAnalysisService, get_video_service
-from .connection import initialize_database, get_db_manager
+from .service import VideoAnalysisService
+from .models import AnalysisConfig
 
-__all__ = [
-    'VideoAnalysis',
-    'Zone', 
-    'FrameDetection',
-    'ZoneEvent',
-    'LineCrossingEvent',
-    'ZoneType',
-    'EventType',
-    'CrossingDirection',
-    'AnalysisStatus',
-    'AnalysisConfig',
-    'VideoAnalysisService',
-    'get_video_service',
-    'initialize_database',
-    'get_db_manager'
-]
+__all__ = ['VideoAnalysisService', 'AnalysisConfig']

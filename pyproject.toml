@@ -1,14 +1,43 @@
 [project]
-name = "videos-yolo"
+name = "videos_yolo"
 version = "0.1.0"
-description = "Add your description here"
+description = "Sistema de análisis de video con YOLOv8, tracking y análisis de zonas"
+authors = [
+    {name = "Tu Nombre", email = "tu.email@ejemplo.com"}
+]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.8.1"
 dependencies = [
-    "ultralytics",
-    "opencv-python",
-    "typer>=0.16.0",
-    "lap>=0.5.12",
+    "ultralytics>=8.0.0",
+    "opencv-python>=4.8.0",
+    "numpy>=1.21.0",
+    "typer>=0.9.0",
     "psycopg2-binary>=2.9.0",
     "pydantic>=2.0.0",
+    "python-dotenv>=1.0.0",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0,<7.2.0",
+]
+
+[project.scripts]
+videos-yolo = "src.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.black]
+line-length = 79
+target-version = ['py38']
+
+[tool.flake8]
+max-line-length = 79
+extend-ignore = ["E203", "W503"]
