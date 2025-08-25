@@ -217,33 +217,134 @@ event_1_15_600,1,line_1,linea_entrada,left_to_right,15,600,200,300
 - `minute_statistics.csv` - Estadísticas por minuto
 - `frame_detections.csv` - Detecciones por frame (sin optimizar)
 
-## 🗄️ **Integración con Base de Datos**
+## 🗄️ **Base de Datos TimescaleDB - Series de Tiempo Optimizadas**
 
-### **Funcionalidad Opcional**
-El sistema mantiene toda su funcionalidad actual mientras agrega opcionalmente el guardado optimizado en PostgreSQL:
+### **🚀 ¿Por qué TimescaleDB?**
+
+TimescaleDB es PostgreSQL con superpoderes para datos de series de tiempo. Perfecto para análisis de video porque tus eventos (entradas/salidas de zonas, cruces de líneas) ocurren en el tiempo.
+
+**Beneficios vs PostgreSQL Normal:**
+- ⚡ **10x más rápido** para consultas por tiempo
+- 📦 **Particionado automático** (hypertables)  
+- 🗜️ **Compresión inteligente** (90% menos espacio)
+- 📊 **Agregaciones continuas** (estadísticas en tiempo real)
+
+### **🐳 Configuración con Docker (5 minutos)**
+
+#### **1. Archivos ya incluidos:**
+- ✅ `docker-compose.yml` - Configuración de TimescaleDB
+- ✅ `docker-setup.md` - Guía completa paso a paso
+- ✅ `database_schema_timescale.sql` - Esquema optimizado
+- ✅ `remove_unused_tables.sql` - Limpieza automática
+
+#### **2. Inicio rápido:**
+```bash
+# Configurar variables de entorno
+cp env.example .env
+nano .env  # Editar DB_PASSWORD
+
+# Iniciar TimescaleDB
+docker-compose up -d
+
+# Verificar funcionamiento
+docker-compose logs timescaledb
+```
+
+#### **3. Verificar instalación:**
+```bash
+# Conectar a la base de datos
+docker exec -it video_analysis_db psql -U video_user -d video_analysis
+
+# Verificar TimescaleDB y hypertables
+SELECT hypertable_name FROM timescaledb_information.hypertables;
+```
+
+### **🚀 Uso con el Sistema**
 
 ```bash
-# Análisis tradicional (sin BD)
+# Análisis tradicional (CSV solamente)
 uv run src/main.py \
     --video-path "data/videos/video_2.mp4" \
     --model-path "models/yolov8n.pt" \
-    --enable-stats \
     --enable-zones "configs/zonas.json"
 
-# Análisis con base de datos
+# Análisis con base de datos TimescaleDB
 uv run src/main.py \
     --video-path "data/videos/video_2.mp4" \
     --model-path "models/yolov8n.pt" \
-    --enable-stats \
     --enable-zones "configs/zonas.json" \
     --enable-database
 ```
 
-### **Ventajas de la Base de Datos**
-- ✅ **Solo eventos significativos** (entrada/salida de zonas, cruces de línea)
-- ✅ **Reducción de 99%** en almacenamiento
-- ✅ **Consultas SQL rápidas**
-- ✅ **Escalabilidad mejorada**
+### **📊 Esquema Optimizado**
+
+```sql
+-- Solo tablas con datos valiosos:
+video_analyses        -- Metadata de análisis
+├── zones            -- Configuración de zonas/líneas  
+├── zone_events      -- Eventos valiosos (hypertable ⚡)
+└── line_crossing_events -- Cruces valiosos (hypertable ⚡)
+
+-- Eliminadas para optimización:
+❌ frame_detections    -- Masiva, datos redundantes
+❌ minute_statistics   -- No se usa, se calcula dinámicamente
+```
+
+### **🎯 Timestamps Híbridos**
+
+Cada evento tiene DOS timestamps para máxima flexibilidad:
+```sql
+time: 2025-08-24 10:30:15.123    -- Para TimescaleDB (análisis histórico)
+video_time_ms: 5500              -- Para correlación (segundo 5.5 del video)
+```
+
+### **📈 Consultas de Ejemplo**
+
+```sql
+-- Eventos de la última hora
+SELECT * FROM zone_events WHERE time >= NOW() - INTERVAL '1 hour';
+
+-- Actividad por intervalos de 5 minutos  
+SELECT 
+    time_bucket('5 minutes', time) as periodo,
+    COUNT(*) as eventos,
+    COUNT(DISTINCT track_id) as tracks_unicos
+FROM zone_events GROUP BY periodo ORDER BY periodo;
+
+-- Flujo de tráfico por dirección
+SELECT direction, COUNT(*) as cruces
+FROM line_crossing_events
+WHERE time >= NOW() - INTERVAL '24 hours'
+GROUP BY direction;
+```
+
+### **🛠️ Comandos Docker Útiles**
+
+```bash
+# Gestión básica
+docker-compose up -d          # Iniciar
+docker-compose down           # Parar
+docker-compose logs -f        # Ver logs
+
+# Gestión de datos  
+docker-compose exec timescaledb pg_dump -U video_user video_analysis > backup.sql
+docker exec -it video_analysis_db psql -U video_user -d video_analysis
+```
+
+### **⚡ Ventajas vs PostgreSQL Normal**
+
+| Aspecto | PostgreSQL Normal | TimescaleDB |
+|---------|-------------------|-------------|
+| **Consultas por tiempo** | 5-10 segundos | Milisegundos ⚡ |
+| **Tablas grandes** | Muy lentas | Siempre rápidas 📦 |
+| **Almacenamiento** | Masivo | 90% menos espacio 🗜️ |
+| **Agregaciones** | Minutos | Instantáneas 📊 |
+
+### **📚 Documentación Completa**
+
+- **`docker-setup.md`** - Guía completa de configuración Docker
+- **`OPTIMIZACION_BASE_DATOS.md`** - Detalles de optimización implementada
+- **`remove_unused_tables.sql`** - Script de limpieza de tablas innecesarias
 
 ## 📚 **Comandos Antiguos (Deprecados)**
 
@@ -443,3 +544,34 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 - [Ultralytics](https://github.com/ultralytics/ultralytics) por YOLOv8
 - [OpenCV](https://opencv.org/) por el procesamiento de video
 - [Typer](https://typer.tiangolo.com/) por la interfaz CLI
+
+## 🎯 **Inicio Rápido con Docker**
+
+¿Quieres empezar inmediatamente? Los archivos ya están listos:
+
+```bash
+# 1. Configurar variables de entorno
+cp env.example .env
+nano .env  # Cambiar DB_PASSWORD
+
+# 2. Iniciar TimescaleDB
+docker-compose up -d
+
+# 3. Verificar instalación
+uv run verify_setup.py
+
+# 4. Hacer tu primer análisis
+uv run src/main.py \
+    --video-path "data/videos/video_2.mp4" \
+    --model-path "models/yolov8n.pt" \
+    --enable-zones "configs/zonas.json" \
+    --enable-database
+```
+
+## 📚 **Documentación Detallada**
+
+Para configuración avanzada, solución de problemas y todos los detalles:
+
+- 📖 **[`docker-setup.md`](docker-setup.md)** - Guía completa paso a paso
+- 🔍 **[`verify_setup.py`](verify_setup.py)** - Script de verificación automática  
+- 📊 **[`OPTIMIZACION_BASE_DATOS.md`](OPTIMIZACION_BASE_DATOS.md)** - Detalles técnicos de optimización
