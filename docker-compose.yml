@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   timescaledb:
     image: timescale/timescaledb:latest-pg16
@@ -13,8 +11,7 @@ services:
       - "5432:5432"
     volumes:
       - timescale_data:/var/lib/postgresql/data
-      - ./database_schema_timescale.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./remove_unused_tables.sql:/docker-entrypoint-initdb.d/02-cleanup.sql
+      - ./tools/database_schema_timescale.sql:/docker-entrypoint-initdb.d/01-schema.sql
     command: ["postgres", "-c", "shared_preload_libraries=timescaledb"]
     restart: unless-stopped
     healthcheck:

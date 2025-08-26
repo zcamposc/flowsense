@@ -1,577 +1,426 @@
-# 🚀 Sistema de Análisis de Video con YOLOv8
+# Sistema de Análisis de Video con YOLOv8
 
-## 📋 Descripción
+## Descripción
 
-Sistema completo de detección y análisis de objetos en videos usando YOLOv8 con funcionalidades avanzadas como tracking de objetos, análisis de zonas de interés, y un sistema de confirmación mejorado para reducir falsos negativos.
+Sistema completo de detección y análisis de objetos en videos usando YOLOv8 con funcionalidades avanzadas como tracking de objetos, análisis de zonas de interés, detección de cruces de línea y almacenamiento en base de datos TimescaleDB optimizada para series de tiempo.
 
-## ✨ Características Principales
+## Características Principales
 
-### 🎯 **Detección Mejorada**
-- **Detección universal**: Por defecto detecta TODOS los objetos disponibles (80 clases COCO)
-- **Filtrado opcional**: Usar `--classes` para detectar solo objetos específicos
-- **Tracking persistente**: Mantiene identidad de objetos entre frames
-- **Umbral de confianza configurable**: Por defecto usa configuración de YOLO para máxima detección
-- **Filtrado inteligente**: Reduce falsos positivos y falsos negativos
+### Detección y Tracking Avanzado
+- Detección universal de todos los objetos COCO (80 clases)
+- Filtrado opcional por clases específicas
+- Tracking persistente con IDs únicos
+- Umbral de confianza configurable
+- Sistema de confirmación para reducir falsos positivos
 
-### 📹 **Funcionalidades de Video**
-- **Detección básica**: Identificación de objetos en tiempo real
-- **Tracking avanzado**: Seguimiento de objetos con IDs únicos y trayectorias
-- **Análisis de zonas**: Detección de entrada/salida en áreas específicas y cruce de líneas
-- **Estadísticas en tiempo real**: Contadores de frames y detecciones
-- **Persistencia CSV**: Guardado optimizado de eventos significativos
+### Análisis de Zonas de Interés
+- Configuración de polígonos para áreas específicas
+- Detección de líneas para cruces direccionales
+- Eventos de entrada/salida automáticos
+- Alertas en tiempo real
+- Visualización interactiva de configuración
 
-### 🖼️ **Procesamiento de Imágenes**
-- **Detección de objetos**: Identificación con bounding boxes y etiquetas
-- **Colores dinámicos**: Verde para alta confianza, naranja para baja
-- **Fondo negro en etiquetas**: Mejor visibilidad del texto
+### Persistencia de Datos
+- Base de datos TimescaleDB optimizada para series de tiempo
+- Exportación CSV de eventos significativos
+- Compresión automática y políticas de retención
+- Consultas optimizadas por tiempo
 
-### 📁 **Gestión Inteligente de Archivos**
-- **Nombres únicos automáticos**: Timestamp para evitar sobrescrituras
-- **Nombres personalizados**: Control total sobre nombres de archivos
-- **Estadísticas sincronizadas**: Mismo nombre base que el video + `_stats`
-- **Organización automática**: Archivos relacionados con nombres relacionados
+### Gestión Inteligente de Archivos
+- Nombres únicos automáticos con timestamp
+- Organización automática de archivos relacionados
+- Prevención de sobrescrituras
+- Nombres personalizados opcionales
 
-## 🚀 **Sistema Unificado (Recomendado)**
+## Instalación
 
-### **Comando Principal: `process`**
+### Requisitos
+- Python 3.8+
+- uv (gestor de paquetes Python)
+- Docker (opcional, para base de datos)
+
+### Configuración del Proyecto
+
 ```bash
-# Solo tracking (por defecto)
-uv run src/main.py \
-    --video-path "data/videos/video.mp4" \
-    --model-path "models/yolov8n.pt"
+# Clonar el repositorio
+git clone <repository-url>
+cd videos_yolo
 
-# Detectar solo personas y coches
-uv run src/main.py \
-    --video-path "data/videos/video.mp4" \
-    --model-path "models/yolov8n.pt" \
-    --classes "person,car"
+# Instalar dependencias con uv
+uv sync
 
-# Detectar solo animales
-uv run src/main.py \
-    --video-path "data/videos/video.mp4" \
-    --model-path "models/yolov8n.pt" \
-    --classes "dog,cat,bird"
-
-# Con estadísticas por frame
-uv run src/main.py \
-    --video-path "data/videos/video.mp4" \
-    --model-path "models/yolov8n.pt" \
-    --enable-stats
-
-# Con zonas de interés
-uv run src/main.py \
-    --video-path "data/videos/video.mp4" \
-    --model-path "models/yolov8n.pt" \
-    --enable-zones "configs/zonas.json"
-
-# Con todas las funcionalidades
-uv run src/main.py \
-    --video-path "data/videos/video.mp4" \
-    --model-path "models/yolov8n.pt" \
-    --enable-stats \
-    --enable-zones "configs/zonas.json" \
-    --enable-database
+# Verificar instalación
+uv run python --version
 ```
 
-### **Parámetros Disponibles**
+### Modelos YOLO
+Descargar los modelos necesarios en la carpeta `models/`:
+- `yolov8n.pt` (nano - más rápido)
+- `yolov8m.pt` (medio - balance)
+- `yolov8x.pt` (extra-large - más preciso)
+
+## Uso Básico
+
+### Comando Principal
+
+```bash
+# Análisis básico con tracking
+uv run src/main.py --video-path "data/videos/video.mp4" --model-path "models/yolov8n.pt"
+
+# Detectar solo personas
+uv run src/main.py --video-path "data/videos/video.mp4" --model-path "models/yolov8n.pt" --classes "person"
+
+# Con estadísticas por frame
+uv run src/main.py --video-path "data/videos/video.mp4" --model-path "models/yolov8n.pt" --enable-stats
+
+# Con análisis de zonas
+uv run src/main.py --video-path "data/videos/video.mp4" --model-path "models/yolov8n.pt" --enable-zones --zones-config "configs/zonas.json"
+
+# Análisis completo con base de datos
+uv run src/main.py --video-path "data/videos/video.mp4" --model-path "models/yolov8n.pt" --enable-stats --enable-zones --zones-config "configs/zonas.json" --enable-database
+```
+
+### Parámetros Disponibles
 
 | Parámetro | Tipo | Requerido | Descripción |
 |-----------|------|-----------|-------------|
-| `--video-path` | str | ✅ | Ruta del archivo de video de entrada |
-| `--model-path` | str | ✅ | Ruta al modelo YOLO (ej: yolov8n.pt) |
-| `--output-path` | str | ❌ | Ruta para guardar el video de salida |
-| `--show` | bool | ❌ | Mostrar visualización en tiempo real (default: True) |
-| `--classes` | str | ❌ | Lista de objetos a detectar (ej: person,car,dog). Por defecto: detecta TODOS los objetos. Ver clases disponibles en: https://github.com/ultralytics/ultralytics/blob/main/ultralytics/cfg/datasets/coco.yaml |
-| `--conf-threshold` | float | ❌ | Umbral de confianza para detecciones (0.0-1.0). Si no se especifica, usa la configuración por defecto de YOLO |
-| `--enable-stats` | bool | ❌ | Habilitar generación de estadísticas por frame |
-| `--enable-zones` | str | ❌ | Ruta al archivo JSON de configuración de zonas |
-| `--save-video` | bool | ❌ | Guardar video procesado (default: True) |
-| `--enable-database` | bool | ❌ | Habilitar funcionalidad de base de datos |
+| `--video-path` | str | Sí | Ruta del archivo de video de entrada |
+| `--model-path` | str | Sí | Ruta al modelo YOLO |
+| `--output-path` | str | No | Ruta para guardar el video de salida |
+| `--show` | bool | No | Mostrar visualización en tiempo real |
+| `--classes` | str | No | Lista de objetos a detectar separados por coma (ej: person,car,dog). Ver [clases disponibles](https://github.com/ultralytics/ultralytics/blob/main/ultralytics/cfg/datasets/coco.yaml) |
+| `--conf-threshold` | float | No | Umbral de confianza (0.0-1.0) |
+| `--enable-stats` | bool | No | Habilitar estadísticas por frame |
+| `--enable-zones` | bool | No | Habilitar análisis de zonas |
+| `--zones-config` | str | No | Ruta al archivo JSON de configuración de zonas |
+| `--enable-database` | bool | No | Habilitar almacenamiento en base de datos |
 
-## 🎯 **¿Por qué Tracking Siempre Activo?**
+## Configuración de Zonas de Interés
 
-### **✅ Ventajas del Tracking Constante**
-
-| Aspecto | Tracking Constante | Modo Básico |
-|---------|-------------------|-------------|
-| **Consistencia** | ✅ **Perfecta** | ❌ Variable |
-| **Precisión** | ✅ **Mayor** | ❌ Menor |
-| **Estabilidad** | ✅ **Estable** | ❌ Inestable |
-| **Funcionalidad** | ✅ **Completa** | ❌ Limitada |
-| **IDs únicos** | ✅ **Sí** | ❌ No |
-| **Trayectorias** | ✅ **Sí** | ❌ No |
-
-**Evidencia Técnica**: El tracking detecta EXACTAMENTE lo mismo que la base de comparación, pero con mayor estabilidad y funcionalidades adicionales.
-
-## 📁 **Gestión de Archivos de Salida**
-
-### **Nombres Automáticos (Sin Sobrescritura)**
-Cuando no especificas `--output-path`, el sistema genera nombres únicos automáticamente:
+### Herramienta de Configuración Interactiva
 
 ```bash
-# Genera nombres únicos con timestamp
-uv run src/main.py \
-    --video-path "data/videos/video_2.mp4" \
-    --model-path "models/yolov8n.pt" \
-    --enable-stats \
-    --enable-zones "configs/zonas.json"
-```
+# Configurar líneas de cruce
+uv run src/utils/configurar_zonas.py --lines --video "data/videos/video.mp4" --frame 5
 
-**Resultado:**
-- Video: `outputs/video_2_yolov8n_stats_zones_20250818_213232.mp4`
-- Estadísticas: `outputs/video_2_yolov8n_stats_zones_20250818_213232_stats.txt`
-- CSV: `outputs/csv_analysis_20250818_213232/`
+# Configurar polígonos de área
+uv run src/utils/configurar_zonas.py --polygons --video "data/videos/video.mp4" --frame 10
 
-### **Nombres Personalizados**
-Cuando especificas `--output-path`, las estadísticas usan el mismo nombre base:
-
-```bash
-# Nombres personalizados
-uv run src/main.py \
-    --video-path "data/videos/video_2.mp4" \
-    --model-path "models/yolov8n.pt" \
-    --enable-stats \
-    --enable-zones "configs/zonas.json" \
-    --output-path "outputs/video_2_lineas_entrada.mp4"
-```
-
-**Resultado:**
-- Video: `outputs/video_2_lineas_entrada.mp4`
-- Estadísticas: `outputs/video_2_lineas_entrada_stats.txt`
-
-### **Sistema de Nomenclatura Inteligente**
-Los archivos se nombran automáticamente según las funcionalidades activadas:
-
-| Funcionalidades | Video | Estadísticas |
-|-----------------|-------|--------------|
-| **Solo tracking** | `video_model_track.mp4` | `video_model_track_stats.txt` |
-| **Tracking + stats** | `video_model_stats.mp4` | `video_model_stats_stats.txt` |
-| **Tracking + zones** | `video_model_zones.mp4` | `video_model_zones_stats.txt` |
-| **Todo activado** | `video_model_stats_zones.mp4` | `video_model_stats_zones_stats.txt` |
-
-## 🎯 **Configuración de Zonas de Interés**
-
-### **Sistema Simplificado de Configuración**
-```bash
-# Configurar solo líneas
-uv run python src/utils/configurar_zonas.py --lines --video "video.mp4" --frame 5
-
-# Configurar solo polígonos
-uv run python src/utils/configurar_zonas.py --polygons --image "imagen.png"
-
-# Configurar ambos en una sesión
-uv run python src/utils/configurar_zonas.py --lines --polygons --video "video.mp4" --frame 10
+# Configurar ambos tipos en una sesión
+uv run src/utils/configurar_zonas.py --lines --polygons --video "data/videos/video.mp4" --frame 5
 
 # Con descripción personalizada
-uv run python src/utils/configurar_zonas.py --lines --video "video.mp4" --description "entrada_principal"
+uv run src/utils/configurar_zonas.py --lines --video "data/videos/video.mp4" --description "entrada_principal"
 
 # Listar configuraciones existentes
-uv run python src/utils/listar_configuraciones.py
+uv run src/utils/listar_configuraciones.py
+
+# Visualizar una configuración existente
+uv run src/utils/visualizar_zonas.py --config "configs/mi_configuracion/zonas.json"
 ```
 
-### **Ventajas del Sistema Simplificado**
-- ✅ **Configuración separada** (líneas y polígonos por separado)
-- ✅ **Nombres únicos** con timestamp y descripción
-- ✅ **Organización automática** en directorios separados
-- ✅ **Imagen automática** siempre se guarda
-- ✅ **Sin sobrescritura** de configuraciones anteriores
+### Instrucciones de Uso Interactivo
 
-### **Estructura de Organización**
+#### Para Líneas de Cruce:
+1. **Clic izquierdo**: Marcar puntos de la línea (mínimo 2 puntos)
+2. **Clic derecho**: Finalizar línea actual
+3. **Tecla 'n'**: Nueva línea
+4. **Tecla 's'**: Guardar configuración
+5. **Tecla 'q'**: Salir sin guardar
+
+#### Para Polígonos de Área:
+1. **Clic izquierdo**: Marcar vértices del polígono (mínimo 3 puntos)
+2. **Clic derecho**: Cerrar polígono actual
+3. **Tecla 'n'**: Nuevo polígono
+4. **Tecla 's'**: Guardar configuración
+5. **Tecla 'q'**: Salir sin guardar
+
+### Estructura de Configuración
+
+Las configuraciones se organizan automáticamente en directorios con timestamp:
+
 ```
 configs/
-├── lineas_entrada_principal_20250818_192959/
-│   ├── zonas.json          # ✅ Configuración específica
-│   ├── zonas_visual.png    # ✅ Imagen con líneas
-│   └── frame_original.png  # ✅ Frame de referencia
-├── polygonos_zonas_restriccion_20250818_193036/
-│   ├── zonas.json          # ✅ Configuración específica
-│   ├── zonas_visual.png    # ✅ Imagen con polígonos
-│   └── frame_original.png  # ✅ Frame de referencia
-└── completa_edificio_20250818_193100/
-    ├── zonas.json          # ✅ Configuración completa
-    ├── zonas_visual.png    # ✅ Imagen con todo
-    └── frame_original.png  # ✅ Frame de referencia
+├── lineas_entrada_principal_20250825_143022/
+│   ├── zonas.json          # Configuración de líneas
+│   ├── zonas_visual.png    # Imagen con líneas dibujadas
+│   └── frame_original.png  # Frame de referencia original
+├── polygonos_area_restringida_20250825_143156/
+│   ├── zonas.json          # Configuración de polígonos
+│   ├── zonas_visual.png    # Imagen con polígonos dibujados
+│   └── frame_original.png  # Frame de referencia original
+└── completa_edificio_20250825_143300/
+    ├── zonas.json          # Configuración mixta (líneas + polígonos)
+    ├── zonas_visual.png    # Imagen con todas las zonas
+    └── frame_original.png  # Frame de referencia original
 ```
 
-## 📊 **Sistema de Persistencia CSV**
+### Formato del Archivo de Configuración
 
-### **Eventos Optimizados**
-El sistema guarda solo eventos significativos, reduciendo el almacenamiento en un **99%**:
-
-#### **Eventos de Zona (Polígonos)**
-```csv
-id,analysis_id,zone_id,zone_name,track_id,event_type,frame_number,timestamp_ms,position_x,position_y,created_at
-event_1_1_40,1,zone_polygon_2,polygon_2,enter,1,40,1501,554
-event_4_44_1760,4,zone_polygon_1,polygon_1,exit,44,1760,253,671
+```json
+{
+  "polygons": [
+    {
+      "name": "area_entrada",
+      "coordinates": [[100, 200], [300, 200], [300, 400], [100, 400]]
+    }
+  ],
+  "lines": [
+    {
+      "name": "linea_entrada",
+      "coordinates": [[150, 300], [250, 300]]
+    }
+  ]
+}
 ```
 
-#### **Cruces de Línea**
-```csv
-id,analysis_id,line_id,line_name,track_id,direction,frame_number,timestamp_ms,position_x,position_y,created_at
-event_1_15_600,1,line_1,linea_entrada,left_to_right,15,600,200,300
-```
+## 🐳 Base de Datos TimescaleDB
 
-### **Archivos CSV Generados**
-- `zone_events.csv` - Entradas y salidas de zonas
-- `line_crossing_events.csv` - Cruces de líneas
-- `minute_statistics.csv` - Estadísticas por minuto
-- `frame_detections.csv` - Detecciones por frame (sin optimizar)
+### Por qué TimescaleDB
 
-## 🗄️ **Base de Datos TimescaleDB - Series de Tiempo Optimizadas**
+TimescaleDB es PostgreSQL optimizado para series de tiempo, ideal para análisis de video porque los eventos ocurren en secuencias temporales.
 
-### **🚀 ¿Por qué TimescaleDB?**
+**Beneficios:**
+- 10x más rápido para consultas temporales
+- Particionado automático (hypertables)
+- Compresión inteligente (90% menos espacio)
+- Agregaciones continuas en tiempo real
 
-TimescaleDB es PostgreSQL con superpoderes para datos de series de tiempo. Perfecto para análisis de video porque tus eventos (entradas/salidas de zonas, cruces de líneas) ocurren en el tiempo.
+### Configuración con Docker
 
-**Beneficios vs PostgreSQL Normal:**
-- ⚡ **10x más rápido** para consultas por tiempo
-- 📦 **Particionado automático** (hypertables)  
-- 🗜️ **Compresión inteligente** (90% menos espacio)
-- 📊 **Agregaciones continuas** (estadísticas en tiempo real)
-
-### **🐳 Configuración con Docker (5 minutos)**
-
-#### **1. Archivos ya incluidos:**
-- ✅ `docker-compose.yml` - Configuración de TimescaleDB
-- ✅ `docker-setup.md` - Guía completa paso a paso
-- ✅ `database_schema_timescale.sql` - Esquema optimizado
-- ✅ `remove_unused_tables.sql` - Limpieza automática
-
-#### **2. Inicio rápido:**
+#### 1. Configurar variables de entorno
 ```bash
-# Configurar variables de entorno
 cp env.example .env
-nano .env  # Editar DB_PASSWORD
-
-# Iniciar TimescaleDB
-docker-compose up -d
-
-# Verificar funcionamiento
-docker-compose logs timescaledb
+# Editar .env y configurar DB_PASSWORD
 ```
 
-#### **3. Verificar instalación:**
+#### 2. Iniciar TimescaleDB
 ```bash
+docker-compose up -d
+```
+
+#### 3. Verificar instalación
+```bash
+# Ver logs
+docker-compose logs timescaledb
+
 # Conectar a la base de datos
 docker exec -it video_analysis_db psql -U video_user -d video_analysis
 
-# Verificar TimescaleDB y hypertables
+# Verificar hypertables
 SELECT hypertable_name FROM timescaledb_information.hypertables;
 ```
 
-### **🚀 Uso con el Sistema**
+#### 4. Aplicar esquema
+```bash
+# Aplicar esquema optimizado
+docker exec -i video_analysis_db psql -U video_user -d video_analysis < tools/database_schema_timescale.sql
+```
+
+### Uso con Análisis
 
 ```bash
-# Análisis tradicional (CSV solamente)
+# Análisis con base de datos
 uv run src/main.py \
-    --video-path "data/videos/video_2.mp4" \
+    --video-path "data/videos/video.mp4" \
     --model-path "models/yolov8n.pt" \
-    --enable-zones "configs/zonas.json"
-
-# Análisis con base de datos TimescaleDB
-uv run src/main.py \
-    --video-path "data/videos/video_2.mp4" \
-    --model-path "models/yolov8n.pt" \
-    --enable-zones "configs/zonas.json" \
+    --enable-zones \
+    --zones-config "configs/mi_config/zonas.json" \
     --enable-database
 ```
 
-### **📊 Esquema Optimizado**
-
-```sql
--- Solo tablas con datos valiosos:
-video_analyses        -- Metadata de análisis
-├── zones            -- Configuración de zonas/líneas  
-├── zone_events      -- Eventos valiosos (hypertable ⚡)
-└── line_crossing_events -- Cruces valiosos (hypertable ⚡)
-
--- Eliminadas para optimización:
-❌ frame_detections    -- Masiva, datos redundantes
-❌ minute_statistics   -- No se usa, se calcula dinámicamente
-```
-
-### **🎯 Timestamps Híbridos**
-
-Cada evento tiene DOS timestamps para máxima flexibilidad:
-```sql
-time: 2025-08-24 10:30:15.123    -- Para TimescaleDB (análisis histórico)
-video_time_ms: 5500              -- Para correlación (segundo 5.5 del video)
-```
-
-### **📈 Consultas de Ejemplo**
+### Consultas de Ejemplo
 
 ```sql
 -- Eventos de la última hora
 SELECT * FROM zone_events WHERE time >= NOW() - INTERVAL '1 hour';
 
--- Actividad por intervalos de 5 minutos  
+-- Actividad por intervalos de 5 minutos
 SELECT 
     time_bucket('5 minutes', time) as periodo,
     COUNT(*) as eventos,
     COUNT(DISTINCT track_id) as tracks_unicos
-FROM zone_events GROUP BY periodo ORDER BY periodo;
+FROM zone_events 
+GROUP BY periodo 
+ORDER BY periodo;
 
--- Flujo de tráfico por dirección
+-- Cruces por dirección
 SELECT direction, COUNT(*) as cruces
 FROM line_crossing_events
 WHERE time >= NOW() - INTERVAL '24 hours'
 GROUP BY direction;
 ```
 
-### **🛠️ Comandos Docker Útiles**
+## Sistema de Persistencia CSV
 
-```bash
-# Gestión básica
-docker-compose up -d          # Iniciar
-docker-compose down           # Parar
-docker-compose logs -f        # Ver logs
+El sistema genera archivos CSV optimizados con solo eventos significativos:
 
-# Gestión de datos  
-docker-compose exec timescaledb pg_dump -U video_user video_analysis > backup.sql
-docker exec -it video_analysis_db psql -U video_user -d video_analysis
+### Archivos Generados
+- `zone_events.csv` - Entradas y salidas de zonas
+- `line_crossing_events.csv` - Cruces de líneas
+- `minute_statistics.csv` - Estadísticas agregadas por minuto
+
+### Estructura de Eventos de Zona
+```csv
+id,analysis_id,zone_id,zone_name,track_id,event_type,frame_number,timestamp_ms,position_x,position_y,class_name,confidence
+event_1_40,uuid,zone_1,area_entrada,1,enter,40,1600,300,200,person,0.85
 ```
 
-### **⚡ Ventajas vs PostgreSQL Normal**
-
-| Aspecto | PostgreSQL Normal | TimescaleDB |
-|---------|-------------------|-------------|
-| **Consultas por tiempo** | 5-10 segundos | Milisegundos ⚡ |
-| **Tablas grandes** | Muy lentas | Siempre rápidas 📦 |
-| **Almacenamiento** | Masivo | 90% menos espacio 🗜️ |
-| **Agregaciones** | Minutos | Instantáneas 📊 |
-
-### **📚 Documentación Completa**
-
-- **`docker-setup.md`** - Guía completa de configuración Docker
-- **`OPTIMIZACION_BASE_DATOS.md`** - Detalles de optimización implementada
-- **`remove_unused_tables.sql`** - Script de limpieza de tablas innecesarias
-
-## 📚 **Comandos Antiguos (Deprecados)**
-
-> **Nota**: Se recomienda usar el nuevo comando unificado.
-
-### Detección en Imágenes
-```bash
-python src/main.py \
-    --image "data/images/person.jpg" \
-    --model "models/yolov8x.pt" \
-    --conf-threshold 0.25 \
-    --show
+### Estructura de Cruces de Línea
+```csv
+id,analysis_id,line_id,line_name,track_id,direction,frame_number,timestamp_ms,position_x,position_y,class_name,confidence
+crossing_1_25,uuid,line_1,linea_entrada,1,left_to_right,25,1000,250,300,person,0.90
 ```
 
-### Procesamiento de Video
+## Herramientas de Utilidad
+
+### Verificación de Video
 ```bash
-python src/main.py video \
-    --video-path "data/videos/people.mp4" \
-    --model-path "models/yolov8x.pt" \
-    --conf-threshold 0.25 \
-    --show
+# Verificar FPS y propiedades del video
+uv run tools/check_fps.py
 ```
 
-### Tracking de Objetos
+### Depuración
 ```bash
-python src/main.py track \
-    --video-path "data/videos/people.mp4" \
-    --model-path "models/yolov8x.pt" \
-    --show
+# Depurar conexión a base de datos
+uv run tools/debug_db.py
+
+# Depurar configuración de zonas
+uv run tools/debug_zones.py
 ```
 
-### Análisis con Zonas de Interés
-```bash
-python src/main.py analyze \
-    --video-path "data/videos/people.mp4" \
-    --model-path "models/yolov8x.pt" \
-    --zones-json "configs/zonas.json" \
-    --conf-threshold 0.25 \
-    --show
-```
-
-## 🚀 **Inicio Rápido**
-
-### **1. Instalación**
-```bash
-git clone <repository-url>
-cd videos_yolo
-pip install -r requirements.txt
-```
-
-### **2. Uso Básico**
-```bash
-# Solo tracking
-uv run src/main.py \
-    --video-path "data/videos/video.mp4" \
-    --model-path "models/yolov8n.pt"
-```
-
-### **3. Configurar Zonas**
-```bash
-# Configuración simplificada
-uv run python src/utils/configurar_zonas.py --lines --video "video.mp4" --frame 5
-```
-
-### **4. Análisis Completo**
-```bash
-uv run src/main.py \
-    --video-path "data/videos/video.mp4" \
-    --model-path "models/yolov8n.pt" \
-    --enable-stats \
-    --enable-zones "configs/zonas.json"
-```
-
-### **5. Con Nombres Personalizados**
-```bash
-uv run src/main.py \
-    --video-path "data/videos/video.mp4" \
-    --model-path "models/yolov8n.pt" \
-    --enable-stats \
-    --enable-zones "configs/zonas.json" \
-    --output-path "outputs/video_2_analisis_completo.mp4"
-```
-
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 videos_yolo/
 ├── src/
-│   ├── main.py              # CLI principal (sistema unificado)
-│   ├── video_unified.py     # Analizador unificado con tracking
+│   ├── main.py              # CLI principal
+│   ├── video_unified.py     # Analizador principal con tracking
 │   ├── persistence/         # Sistema de persistencia CSV
-│   │   └── csv_writer.py    # Escritor optimizado de eventos
 │   ├── database/            # Sistema de base de datos
-│   │   ├── connection.py    # Conexión a PostgreSQL
-│   │   ├── models.py        # Modelos de datos
-│   │   └── service.py       # Servicio de BD
-│   └── utils/               # Utilidades
-│       ├── configurar_zonas.py  # Configuración simplificada de zonas
-│       ├── listar_configuraciones.py  # Gestión de configuraciones
-│       ├── file_manager.py  # Gestión de archivos
-│       ├── geometry.py      # Funciones geométricas
-│       └── coco_classes.py  # Clases COCO
+│   └── utils/               # Utilidades de configuración
+├── tools/                   # Herramientas de utilidad
+│   ├── check_fps.py         # Verificación de video
+│   ├── debug_db.py          # Depuración de BD
+│   ├── debug_zones.py       # Depuración de zonas
+│   └── database_schema_timescale.sql  # Esquema de BD
 ├── models/                  # Modelos YOLO
-├── configs/                 # Configuraciones (zonas.json)
+├── configs/                 # Configuraciones de zonas
 ├── data/                    # Datos de entrada
-│   ├── images/              # Imágenes de prueba
-│   └── videos/              # Videos de prueba
-├── outputs/                 # Resultados
-│   └── csv_analysis_*/      # Análisis CSV optimizados
-└── examples/                # Ejemplos de salida
+├── outputs/                 # Resultados de análisis
+├── examples/                # Ejemplos de salida
+├── docker-compose.yml       # Configuración Docker
+└── pyproject.toml          # Configuración del proyecto
 ```
 
-## 🎯 **Ventajas del Sistema Unificado**
+## Gestión de Archivos de Salida
 
-### ✅ **Consistencia Perfecta**
-- **Tracking siempre activo** para máxima precisión
-- **Mismos resultados** entre ejecuciones
-- **Sin pérdida de detecciones** como en comandos antiguos
+### Nombres Automáticos
+Sin especificar `--output-path`, el sistema genera nombres únicos:
 
-### ✅ **Simplicidad de Uso**
-- **Un solo comando** para todas las funcionalidades
-- **Flags opcionales** para habilitar características
-- **Nombres de archivos inteligentes** según funcionalidades activadas
+```bash
+# Entrada
+uv run src/main.py --video-path "data/videos/video_2.mp4" --model-path "models/yolov8n.pt" --enable-stats --enable-zones
 
-### ✅ **Funcionalidades Avanzadas**
-- **Estadísticas por frame** con conteo de objetos en zonas
-- **Análisis de zonas** con alertas en tiempo real
-- **Tracking estable** con IDs únicos confirmados
-- **Persistencia optimizada** con solo eventos significativos
+# Salida generada automáticamente
+outputs/video_2_yolov8n_stats_zones_20250825_143022.mp4
+outputs/video_2_yolov8n_stats_zones_20250825_143022_stats.txt
+outputs/csv_analysis_20250825_143022/
+```
 
-### ✅ **Gestión Inteligente de Archivos**
-- **Sin sobrescrituras** con nombres únicos automáticos
-- **Nombres descriptivos** para fácil identificación
-- **Organización automática** de archivos relacionados
-- **Flexibilidad total** para nombres personalizados
+### Nombres Personalizados
+Con `--output-path` especificado:
 
-## 🔧 **Mejoras Implementadas**
+```bash
+# Entrada
+uv run src/main.py --video-path "data/videos/video_2.mp4" --model-path "models/yolov8n.pt" --output-path "outputs/analisis_entrada.mp4"
 
-### **Sistema de Confirmación**
-- Filtra detecciones breves (menos de 5 frames)
-- Asigna IDs estables y secuenciales
-- Reduce falsos positivos automáticamente
+# Salida
+outputs/analisis_entrada.mp4
+outputs/analisis_entrada_stats.txt
+```
 
-### **Visualización Mejorada**
-- Colores basados en confianza
-- Trayectorias de movimiento
-- Etiquetas con fondo negro
-- Estadísticas en tiempo real
+## Clases COCO Disponibles
 
-### **Optimizaciones de Rendimiento**
-- Tracking persistente habilitado
-- Umbral de confianza configurable
-- Procesamiento eficiente de frames
-- Persistencia optimizada (99% menos datos)
+El sistema puede detectar **80 clases diferentes** del dataset COCO. Para ver la lista completa y actualizada, consulta el archivo oficial de Ultralytics:
 
-### **Gestión de Archivos**
-- Nombres únicos con timestamp automático
-- Sincronización entre video y estadísticas
-- Prevención de sobrescrituras
-- Organización inteligente de archivos
+**Referencia oficial**: [COCO Dataset Classes](https://github.com/ultralytics/ultralytics/blob/main/ultralytics/cfg/datasets/coco.yaml)
 
-## Modelos Recomendados
+### Principales categorías:
+- **Personas**: person
+- **Vehículos**: bicycle, car, motorcycle, airplane, bus, train, truck, boat
+- **Animales**: bird, cat, dog, horse, sheep, cow, elephant, bear, zebra, giraffe
+- **Objetos cotidianos**: backpack, umbrella, handbag, tie, suitcase, bottle, cup, fork, knife, spoon, bowl
+- **Alimentos**: banana, apple, sandwich, orange, broccoli, carrot, hot dog, pizza, donut, cake
+- **Muebles**: chair, couch, potted plant, bed, dining table, toilet
+- **Electrónicos**: tv, laptop, mouse, remote, keyboard, cell phone, microwave, oven, toaster, refrigerator
+- **Deportes**: frisbee, skis, snowboard, sports ball, kite, baseball bat, baseball glove, skateboard, surfboard, tennis racket
+- **Otros**: book, clock, vase, scissors, teddy bear, hair drier, toothbrush
 
-Para lograr la **máxima detección** de personas:
+### Filtrado por Clases
+```bash
+# Solo personas
+--classes "person"
 
-1. **YOLOv8x** (`yolov8x.pt`) - Máxima precisión
-2. **YOLOv8l** (`yolov8l.pt`) - Alta precisión
-3. **YOLOv8m** (`yolov8m.pt`) - Buena precisión
+# Personas y vehículos
+--classes "person,car,motorcycle,bicycle"
 
-> **Nota**: Los modelos más grandes requieren GPU para tiempo real.
+# Animales domésticos
+--classes "dog,cat"
+```
 
-## 📚 **Documentación Adicional**
+## Comandos de Gestión Docker
 
-### **Guías Detalladas**
-- **`FASES_PROYECTO.md`** - Historial completo del desarrollo del proyecto
-- **`FASE_9_DATABASE_README.md`** - Documentación detallada de la integración con base de datos
+```bash
+# Iniciar servicios
+docker-compose up -d
 
-### **Scripts de Configuración**
-- **`src/utils/configurar_zonas.py`** - Configuración simplificada de zonas
-- **`src/utils/listar_configuraciones.py`** - Gestión de configuraciones
-- **`configs/zonas.json`** - Archivo de configuración de zonas
+# Ver logs
+docker-compose logs -f timescaledb
+
+# Parar servicios
+docker-compose down
+
+# Backup de base de datos
+docker-compose exec timescaledb pg_dump -U video_user video_analysis > backup.sql
+
+# Conectar a base de datos
+docker exec -it video_analysis_db psql -U video_user -d video_analysis
+
+# Reiniciar servicios
+docker-compose restart
+```
+
+## Solución de Problemas
+
+### Error de Conexión a Base de Datos
+1. Verificar que Docker esté ejecutándose
+2. Comprobar variables de entorno en `.env`
+3. Verificar logs: `docker-compose logs timescaledb`
+
+### Error de FPS Inválido
+1. Verificar propiedades del video: `uv run tools/check_fps.py`
+2. Usar un video con FPS válido (>0)
+
+### Error en Configuración de Zonas
+1. Verificar formato JSON: `uv run tools/debug_zones.py`
+2. Asegurar coordenadas dentro del frame del video
 
 ## Contribución
 
 1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
+2. Crear una rama para tu feature: `git checkout -b feature/nueva-funcionalidad`
+3. Commit los cambios: `git commit -m 'Agregar nueva funcionalidad'`
+4. Push a la rama: `git push origin feature/nueva-funcionalidad`
+5. Abrir un Pull Request
 
 ## Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
 
-## Agradecimientos
+## Documentación Adicional
 
-- [Ultralytics](https://github.com/ultralytics/ultralytics) por YOLOv8
-- [OpenCV](https://opencv.org/) por el procesamiento de video
-- [Typer](https://typer.tiangolo.com/) por la interfaz CLI
-
-## 🎯 **Inicio Rápido con Docker**
-
-¿Quieres empezar inmediatamente? Los archivos ya están listos:
-
-```bash
-# 1. Configurar variables de entorno
-cp env.example .env
-nano .env  # Cambiar DB_PASSWORD
-
-# 2. Iniciar TimescaleDB
-docker-compose up -d
-
-# 3. Verificar instalación
-uv run verify_setup.py
-
-# 4. Hacer tu primer análisis
-uv run src/main.py \
-    --video-path "data/videos/video_2.mp4" \
-    --model-path "models/yolov8n.pt" \
-    --enable-zones "configs/zonas.json" \
-    --enable-database
-```
-
-## 📚 **Documentación Detallada**
-
-Para configuración avanzada, solución de problemas y todos los detalles:
-
-- 📖 **[`docker-setup.md`](docker-setup.md)** - Guía completa paso a paso
-- 🔍 **[`verify_setup.py`](verify_setup.py)** - Script de verificación automática  
-- 📊 **[`OPTIMIZACION_BASE_DATOS.md`](OPTIMIZACION_BASE_DATOS.md)** - Detalles técnicos de optimización
+- `tools/README.md` - Documentación de herramientas de utilidad
+- `docker-setup.md` - Guía detallada de configuración Docker
+- `FASES_PROYECTO.md` - Historial de desarrollo del proyecto
+- `examples/` - Ejemplos de archivos CSV y configuraciones

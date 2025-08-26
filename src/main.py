@@ -43,10 +43,9 @@ def process(
     ),
     classes: Optional[str] = typer.Option(
         None,
-        help="Lista de objetos a detectar (ej: person,car,dog). "
-             "Por defecto: detecta TODOS los objetos. Ver clases disponibles en: "
-             "https://github.com/ultralytics/ultralytics/blob/main/"
-             "ultralytics/cfg/datasets/coco.yaml"
+        help="Lista de objetos a detectar separados por coma (ej: person,car,dog). "
+             "Por defecto: detecta TODOS los objetos (80 clases COCO). "
+             "Ver lista completa: https://github.com/ultralytics/ultralytics/blob/main/ultralytics/cfg/datasets/coco.yaml"
     ),
     conf_threshold: Optional[float] = typer.Option(
         None, 

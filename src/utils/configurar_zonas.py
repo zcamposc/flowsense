@@ -1,11 +1,37 @@
 #!/usr/bin/env python3
 """
-Script simplificado para configurar líneas y zonas por separado.
+Herramienta Interactiva de Configuración de Zonas de Interés
 
-Uso:
-    python configurar_zonas.py --lines --video "video.mp4" --frame 5
-    python configurar_zonas.py --polygons --image "imagen.png"
-    python configurar_zonas.py --help
+Esta herramienta permite configurar zonas de análisis para el sistema de detección de video:
+- Líneas de cruce: Para detectar movimiento direccional
+- Polígonos de área: Para detectar entrada/salida de zonas específicas
+
+Uso básico:
+    uv run src/utils/configurar_zonas.py --lines --video "data/videos/video.mp4" --frame 5
+    uv run src/utils/configurar_zonas.py --polygons --video "data/videos/video.mp4" --frame 10
+    uv run src/utils/configurar_zonas.py --lines --polygons --video "data/videos/video.mp4"
+
+Controles interactivos:
+    LÍNEAS:
+        - Clic izquierdo: Marcar puntos de la línea (mínimo 2)
+        - Clic derecho: Finalizar línea actual
+        - Tecla 'n': Nueva línea
+        - Tecla 's': Guardar configuración
+        - Tecla 'q': Salir sin guardar
+    
+    POLÍGONOS:
+        - Clic izquierdo: Marcar vértices del polígono (mínimo 3)
+        - Clic derecho: Cerrar polígono actual
+        - Tecla 'n': Nuevo polígono
+        - Tecla 's': Guardar configuración
+        - Tecla 'q': Salir sin guardar
+
+Organización automática:
+    Las configuraciones se guardan en directorios con timestamp:
+    configs/lineas_descripcion_20250825_143022/
+    ├── zonas.json          # Configuración de zonas
+    ├── zonas_visual.png    # Imagen con zonas dibujadas
+    └── frame_original.png  # Frame de referencia original
 """
 
 import cv2
@@ -218,21 +244,45 @@ def generate_unique_name(config_type, description=""):
 def main():
     """Función principal del script."""
     parser = argparse.ArgumentParser(
-        description="Configuración simplificada de líneas y zonas por separado",
+        description="Herramienta Interactiva de Configuración de Zonas de Interés",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Ejemplos de uso:
-  # Configurar líneas desde video
-  python configurar_zonas.py --lines --video "video.mp4" --frame 5
-  
-  # Configurar polígonos desde imagen
-  python configurar_zonas.py --polygons --image "imagen.png"
-  
-  # Con descripción personalizada
-  python configurar_zonas.py --lines --video "video.mp4" --description "entrada_principal"
-  
-  # Configurar líneas y polígonos en una sesión
-  python configurar_zonas.py --lines --polygons --video "video.mp4" --frame 10
+EJEMPLOS DE USO:
+
+  Configurar líneas de cruce:
+    uv run src/utils/configurar_zonas.py --lines --video "data/videos/video.mp4" --frame 5
+    uv run src/utils/configurar_zonas.py --lines --video "data/videos/video.mp4" --description "entrada_principal"
+
+  Configurar polígonos de área:
+    uv run src/utils/configurar_zonas.py --polygons --video "data/videos/video.mp4" --frame 10
+    uv run src/utils/configurar_zonas.py --polygons --image "frame.png"
+
+  Configurar ambos tipos:
+    uv run src/utils/configurar_zonas.py --lines --polygons --video "data/videos/video.mp4"
+
+  Con nombres personalizados:
+    uv run src/utils/configurar_zonas.py --lines --video "data/videos/video.mp4" --line-names "entrada,salida"
+    uv run src/utils/configurar_zonas.py --polygons --video "data/videos/video.mp4" --zone-names "area_restringida,zona_segura"
+
+CONTROLES INTERACTIVOS:
+
+  Para LÍNEAS:
+    • Clic izquierdo: Marcar puntos de la línea (mínimo 2 puntos)
+    • Clic derecho: Finalizar línea actual
+    • Tecla 'n': Nueva línea
+    • Tecla 's': Guardar configuración
+    • Tecla 'q': Salir sin guardar
+
+  Para POLÍGONOS:
+    • Clic izquierdo: Marcar vértices del polígono (mínimo 3 puntos)
+    • Clic derecho: Cerrar polígono actual
+    • Tecla 'n': Nuevo polígono
+    • Tecla 's': Guardar configuración
+    • Tecla 'q': Salir sin guardar
+
+HERRAMIENTAS RELACIONADAS:
+    uv run src/utils/listar_configuraciones.py    # Ver configuraciones existentes
+    uv run src/utils/visualizar_zonas.py          # Visualizar configuración específica
         """
     )
     
@@ -240,23 +290,23 @@ Ejemplos de uso:
     parser.add_argument(
         "--lines",
         action="store_true",
-        help="Configurar líneas de cruce"
+        help="Configurar líneas de cruce para detectar movimiento direccional"
     )
     parser.add_argument(
         "--polygons",
         action="store_true",
-        help="Configurar polígonos de interés"
+        help="Configurar polígonos de área para detectar entrada/salida de zonas"
     )
     
     # Argumentos de entrada
     input_group = parser.add_mutually_exclusive_group(required=True)
     input_group.add_argument(
         "--image", "-i",
-        help="Ruta a la imagen de referencia"
+        help="Ruta a la imagen de referencia para configurar zonas"
     )
     input_group.add_argument(
         "--video", "-v",
-        help="Ruta al video de referencia"
+        help="Ruta al video de referencia para extraer frame y configurar zonas"
     )
     
     # Argumentos opcionales
@@ -264,24 +314,24 @@ Ejemplos de uso:
         "--frame", "-f",
         type=int,
         default=0,
-        help="Número de frame a extraer del video (por defecto: 0)"
+        help="Número de frame a extraer del video (por defecto: 0, primer frame)"
     )
     parser.add_argument(
         "--description", "-d",
-        help="Descripción para el nombre de la configuración"
+        help="Descripción personalizada para identificar la configuración (ej: 'entrada_principal')"
     )
     parser.add_argument(
         "--config-dir",
         default="configs",
-        help="Directorio para guardar la configuración (por defecto: configs)"
+        help="Directorio donde guardar la configuración (por defecto: configs/)"
     )
     parser.add_argument(
         "--line-names",
-        help="Nombres personalizados para las líneas (separados por coma). Ej: entrada_principal,salida_emergencia"
+        help="Nombres personalizados para líneas separados por coma (ej: 'entrada_principal,salida_emergencia')"
     )
     parser.add_argument(
         "--zone-names", 
-        help="Nombres personalizados para las zonas (separados por coma). Ej: entrada_principal,zona_restriccion"
+        help="Nombres personalizados para polígonos separados por coma (ej: 'area_restringida,zona_segura')"
     )
     
     args = parser.parse_args()

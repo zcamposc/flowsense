@@ -7,7 +7,7 @@ Esta guía te permitirá tener TimescaleDB funcionando en minutos usando Docker.
 ### **Requisitos Previos**
 - Docker instalado en tu sistema
 - Docker Compose instalado
-- Los archivos `database_schema_timescale.sql` y `remove_unused_tables.sql` en la raíz del proyecto
+- El archivo `tools/database_schema_timescale.sql` disponible en el proyecto
 
 ### **Paso 1: Crear docker-compose.yml**
 
@@ -190,8 +190,7 @@ services:
       - "5432:5432"
     volumes:
       - timescale_data_prod:/var/lib/postgresql/data
-      - ./database_schema_timescale.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./remove_unused_tables.sql:/docker-entrypoint-initdb.d/02-cleanup.sql
+      - ./tools/database_schema_timescale.sql:/docker-entrypoint-initdb.d/01-schema.sql
       - ./postgresql.conf:/etc/postgresql/postgresql.conf
     command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     restart: always
@@ -275,8 +274,7 @@ DB_PORT=5433
 #### **2. Error de permisos en archivos SQL**
 ```bash
 # Dar permisos correctos
-chmod 644 database_schema_timescale.sql
-chmod 644 remove_unused_tables.sql
+chmod 644 tools/database_schema_timescale.sql
 
 # Verificar propietario
 ls -la *.sql
@@ -312,7 +310,7 @@ docker exec -it video_analysis_db psql -U video_user -d video_analysis
 #### **5. Base de datos no se inicializa**
 ```bash
 # Verificar archivos SQL existen
-ls -la database_schema_timescale.sql remove_unused_tables.sql
+ls -la tools/database_schema_timescale.sql
 
 # Ver logs de inicialización
 docker-compose logs timescaledb | grep -i "init\|error\|failed"
