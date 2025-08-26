@@ -50,12 +50,15 @@ uv run src/main.py --help
 
 #### **Ejecutar Scripts**
 ```bash
-# Ejecutar comando principal
+# Ejecutar comando principal (recomendado)
 uv run src/main.py --video-path "data/videos/video.mp4" --model-path "models/yolov8n.pt"
 
+# Alternativa usando el script definido (requiere instalación)
+uv run --with . videos-yolo --help
+
 # Ejecutar herramientas
-uv run tools/verify_setup.py
 uv run tools/check_fps.py
+uv run tools/debug_db.py
 
 # Ejecutar utilidades
 uv run src/utils/configurar_zonas.py --lines --video "video.mp4"
@@ -141,8 +144,8 @@ uv run src/main.py \
 # Configurar nuevas zonas
 uv run src/utils/configurar_zonas.py --polygons --video "video.mp4"
 
-# Verificar setup de base de datos
-uv run tools/verify_setup.py
+# Verificar propiedades del video
+uv run tools/check_fps.py
 ```
 
 ### **🧪 Testing y Desarrollo**
