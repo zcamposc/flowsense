@@ -51,15 +51,147 @@ uv sync
 
 # Verificar instalación
 uv run python --version
+
+# Crear carpetas necesarias (opcional - se crean automáticamente)
+mkdir -p models data/videos data/images
 ```
 
 ### Modelos YOLO
-Descargar los modelos necesarios en la carpeta `models/`:
-- `yolov8n.pt` (nano - más rápido)
-- `yolov8m.pt` (medio - balance)
-- `yolov8x.pt` (extra-large - más preciso)
 
-**Descarga oficial**: [Yolo Models](https://docs.ultralytics.com/models/)
+Los modelos YOLO deben guardarse en la carpeta `models/` del proyecto:
+
+```bash
+# Crear carpeta si no existe
+mkdir -p models
+
+# Descargar modelos recomendados
+cd models
+wget https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8n.pt
+wget https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8m.pt
+wget https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8x.pt
+cd ..
+```
+
+**Modelos disponibles:**
+- `yolov8n.pt` (nano - más rápido, ~6MB)
+- `yolov8s.pt` (small - balance velocidad/precisión, ~22MB)  
+- `yolov8m.pt` (medium - buena precisión, ~52MB)
+- `yolov8l.pt` (large - alta precisión, ~87MB)
+- `yolov8x.pt` (extra-large - máxima precisión, ~136MB)
+
+**Descarga oficial**: [Ultralytics YOLO Models](https://docs.ultralytics.com/models/)
+
+### Videos de Entrada
+
+Coloca tus videos en la carpeta `data/videos/` para facilitar su acceso:
+
+```bash
+# Copiar videos a la carpeta del proyecto
+cp /ruta/a/tu/video.mp4 data/videos/
+
+# Listar videos disponibles
+ls -la data/videos/
+```
+
+**Formatos soportados**: MP4, AVI, MOV, MKV y otros formatos compatibles con OpenCV.
+
+## Organización de Carpetas
+
+El proyecto utiliza una estructura de carpetas específica para organizar diferentes tipos de archivos:
+
+### **Estructura del Proyecto**
+```
+videos_yolo/
+├── models/                     # 📁 Modelos YOLO (.pt)
+│   ├── yolov8n.pt             # Modelo nano (rápido)
+│   ├── yolov8m.pt             # Modelo medium (balance)
+│   └── yolov8x.pt             # Modelo extra-large (preciso)
+├── data/                       # 📁 Datos de entrada
+│   ├── videos/                # Videos para procesar
+│   └── images/                # Imágenes para procesar
+├── configs/                    # 📁 Configuraciones de zonas
+│   ├── lineas_entrada_20250826_001234/
+│   ├── polygonos_areas_20250826_001456/
+│   └── completa_configuracion_20250826_001789/
+├── outputs/                    # 📁 Resultados de análisis
+│   ├── video_procesado.mp4    # Videos con análisis
+│   ├── video_procesado_stats.txt  # Estadísticas
+│   └── csv_analysis_20250826_001234/  # Datos CSV
+└── tools/                      # 📁 Herramientas utilitarias
+```
+
+### **¿Dónde van los archivos?**
+
+| Tipo de archivo | Carpeta | Descripción |
+|------------------|---------|-------------|
+| **Modelos YOLO** | `models/` | Archivos `.pt` descargados de Ultralytics |
+| **Videos de entrada** | `data/videos/` | Videos originales para procesar |
+| **Configuraciones de zonas** | `configs/` | Archivos JSON con zonas y líneas |
+| **Videos procesados** | `outputs/` | Videos con detecciones y tracking |
+| **Estadísticas** | `outputs/` | Archivos de texto con métricas |
+| **Datos CSV** | `outputs/csv_analysis_*/` | Eventos exportados en formato CSV |
+| **Herramientas** | `tools/` | Scripts de utilidad y esquemas de BD |
+
+### **Creación Automática de Carpetas**
+
+El sistema crea automáticamente las carpetas necesarias:
+
+- **Configuraciones**: Se crean con timestamp único en `configs/`
+  ```
+  configs/lineas_entrada_principal_20250826_143022/
+  ├── zonas.json              # Configuración
+  ├── zonas_visual.png        # Imagen con zonas dibujadas
+  └── frame_original.png      # Frame de referencia
+  ```
+
+- **Resultados**: Se guardan con nombres únicos en `outputs/`
+  ```
+  outputs/
+  ├── video_2_yolov8n_stats_zones_20250826_143022.mp4
+  ├── video_2_yolov8n_stats_zones_20250826_143022_stats.txt
+  └── csv_analysis_20250826_143022/
+      ├── zone_events.csv
+      ├── line_crossing_events.csv
+      └── minute_statistics.csv
+  ```
+
+## Inicio Rápido
+
+### **Flujo Completo de Trabajo**
+
+1. **Preparar modelos y datos**:
+   ```bash
+   # Descargar modelo (se guarda en models/)
+   cd models && wget https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8n.pt && cd ..
+   
+   # Copiar tu video (se guarda en data/videos/)
+   cp /ruta/a/tu/video.mp4 data/videos/mi_video.mp4
+   ```
+
+2. **Configurar zonas** (opcional - se guarda en `configs/`):
+   ```bash
+   # Crear configuración de zonas (resultado en configs/)
+   uv run src/utils/configurar_zonas.py --polygons --video "data/videos/mi_video.mp4" --zone-names "entrada,salida"
+   ```
+
+3. **Procesar video** (resultado en `outputs/`):
+   ```bash
+   # Análisis completo (resultado en outputs/)
+   uv run src/main.py \
+       --video-path "data/videos/mi_video.mp4" \
+       --model-path "models/yolov8n.pt" \
+       --enable-zones \
+       --zones-config "configs/polygonos_entrada_salida_20250826_143022/zonas.json"
+   ```
+
+4. **Ver resultados** (en `outputs/`):
+   ```bash
+   # Listar archivos generados
+   ls -la outputs/
+   
+   # Ver estadísticas
+   cat outputs/mi_video_yolov8n_zones_20250826_143022_stats.txt
+   ```
 
 ## Uso Básico
 
@@ -385,6 +517,8 @@ videos_yolo/
 ```
 
 ## Gestión de Archivos de Salida
+
+**Ubicación**: Todos los archivos de salida se guardan automáticamente en la carpeta `outputs/`
 
 ### Nombres Automáticos
 Sin especificar `--output-path`, el sistema genera nombres únicos:
