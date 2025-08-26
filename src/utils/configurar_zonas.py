@@ -403,14 +403,24 @@ HERRAMIENTAS RELACIONADAS:
                     
                     # Crear objeto de línea con nombre si está disponible
                     if line_names and line_count < len(line_names):
+                        # Usar nombres específicos proporcionados
                         line_obj = {
                             "id": f"line_{line_names[line_count]}",
                             "name": line_names[line_count],
                             "coordinates": linea
                         }
                         zonas["lines"].append(line_obj)
+                    elif args.description:
+                        # Usar descripción para generar nombres automáticos
+                        line_name = f"{args.description}_{line_count + 1}" if line_count > 0 else args.description
+                        line_obj = {
+                            "id": f"line_{line_name}",
+                            "name": line_name,
+                            "coordinates": linea
+                        }
+                        zonas["lines"].append(line_obj)
                     else:
-                        # Formato simple si no hay nombres personalizados
+                        # Formato simple si no hay nombres personalizados ni descripción
                         zonas["lines"].append(linea)
                     
                     line_count += 1
@@ -418,6 +428,9 @@ HERRAMIENTAS RELACIONADAS:
                     # Mostrar nombre si está disponible
                     if line_names and line_count <= len(line_names):
                         print(f"✅ Línea '{line_names[line_count-1]}' configurada")
+                    elif args.description:
+                        line_name = f"{args.description}_{line_count}" if line_count > 1 else args.description
+                        print(f"✅ Línea '{line_name}' configurada")
                     
                     # Preguntar si agregar más líneas (solo si no se especificaron nombres)
                     if line_names and line_count >= len(line_names):
@@ -454,14 +467,24 @@ HERRAMIENTAS RELACIONADAS:
                     
                     # Crear objeto de zona con nombre si está disponible
                     if zone_names and zone_count < len(zone_names):
+                        # Usar nombres específicos proporcionados
                         zone_obj = {
                             "id": f"zone_{zone_names[zone_count]}",
                             "name": zone_names[zone_count],
                             "coordinates": poligono
                         }
                         zonas["polygons"].append(zone_obj)
+                    elif args.description:
+                        # Usar descripción para generar nombres automáticos
+                        zone_name = f"{args.description}_{zone_count + 1}" if zone_count > 0 else args.description
+                        zone_obj = {
+                            "id": f"zone_{zone_name}",
+                            "name": zone_name,
+                            "coordinates": poligono
+                        }
+                        zonas["polygons"].append(zone_obj)
                     else:
-                        # Formato simple si no hay nombres personalizados
+                        # Formato simple si no hay nombres personalizados ni descripción
                         zonas["polygons"].append(poligono)
                     
                     zone_count += 1
@@ -469,6 +492,9 @@ HERRAMIENTAS RELACIONADAS:
                     # Mostrar nombre si está disponible
                     if zone_names and zone_count <= len(zone_names):
                         print(f"✅ Zona '{zone_names[zone_count-1]}' configurada")
+                    elif args.description:
+                        zone_name = f"{args.description}_{zone_count}" if zone_count > 1 else args.description
+                        print(f"✅ Zona '{zone_name}' configurada")
                     
                     # Preguntar si agregar más polígonos (solo si no se especificaron nombres)
                     if zone_names and zone_count >= len(zone_names):

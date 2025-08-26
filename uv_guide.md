@@ -141,8 +141,11 @@ uv run src/main.py \
     --model-path "models/yolov8n.pt" \
     --enable-zones "configs/zonas.json"
 
-# Configurar nuevas zonas
+# Configurar nuevas zonas (básico)
 uv run src/utils/configurar_zonas.py --polygons --video "video.mp4"
+
+# Configurar múltiples zonas con nombres específicos
+uv run src/utils/configurar_zonas.py --polygons --video "video.mp4" --zone-names "entrada,zona_vip,area_restriccion"
 
 # Verificar propiedades del video
 uv run tools/check_fps.py

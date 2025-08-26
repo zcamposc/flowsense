@@ -99,6 +99,7 @@ uv run src/main.py --video-path "data/videos/video.mp4" --model-path "models/yol
 
 ### Herramienta de Configuración Interactiva
 
+#### **Configuración Básica:**
 ```bash
 # Configurar líneas de cruce
 uv run src/utils/configurar_zonas.py --lines --video "data/videos/video.mp4" --frame 5
@@ -108,15 +109,78 @@ uv run src/utils/configurar_zonas.py --polygons --video "data/videos/video.mp4" 
 
 # Configurar ambos tipos en una sesión
 uv run src/utils/configurar_zonas.py --lines --polygons --video "data/videos/video.mp4" --frame 5
+```
 
-# Con descripción personalizada
+#### **Con Nombres Automáticos (usando descripción):**
+```bash
+# Una línea con nombre automático basado en descripción
 uv run src/utils/configurar_zonas.py --lines --video "data/videos/video.mp4" --description "entrada_principal"
 
+# Un polígono con nombre automático
+uv run src/utils/configurar_zonas.py --polygons --video "data/videos/video.mp4" --description "zona_segura"
+```
+
+#### **Múltiples Zonas con Nombres Personalizados:**
+```bash
+# Múltiples líneas con nombres específicos
+uv run src/utils/configurar_zonas.py --lines --video "data/videos/video.mp4" --line-names "entrada_principal,salida_emergencia,cruce_central"
+
+# Múltiples polígonos con nombres específicos
+uv run src/utils/configurar_zonas.py --polygons --video "data/videos/video.mp4" --zone-names "entrada_principal,zona_restriccion,area_vip"
+
+# Configuración completa con múltiples líneas y polígonos
+uv run src/utils/configurar_zonas.py --lines --polygons --video "data/videos/video.mp4" --line-names "entrada,salida" --zone-names "area_principal,zona_restriccion"
+```
+
+#### **Herramientas de Gestión:**
+```bash
 # Listar configuraciones existentes
 uv run src/utils/listar_configuraciones.py
 
-# Visualizar una configuración existente
+# Visualizar una configuración específica
 uv run src/utils/visualizar_zonas.py --config "configs/mi_configuracion/zonas.json"
+```
+
+### Flujo de Trabajo para Múltiples Zonas
+
+#### **¿Cómo funciona `--zone-names` y `--line-names`?**
+
+1. **Especificas los nombres** separados por coma
+2. **El sistema configura cada zona en orden** 
+3. **Automáticamente asigna nombres** a cada zona que configures
+4. **Termina cuando completes todas** las zonas especificadas
+
+**Ejemplo práctico:**
+```bash
+uv run src/utils/configurar_zonas.py --polygons --video "video.mp4" --zone-names "entrada_principal,zona_restriccion"
+
+# El sistema te guiará:
+# 📊 Configurando 2 zonas con nombres personalizados
+# 🔄 Configurando zona 1: entrada_principal
+# [configuras el primer polígono]
+# ✅ Zona 'entrada_principal' configurada
+# 🔄 Configurando zona 2: zona_restriccion  
+# [configuras el segundo polígono]
+# ✅ Zona 'zona_restriccion' configurada
+# ✅ Todas las 2 zonas configuradas
+```
+
+**Resultado JSON:**
+```json
+{
+  "polygons": [
+    {
+      "id": "zone_entrada_principal",
+      "name": "entrada_principal",
+      "coordinates": [...]
+    },
+    {
+      "id": "zone_zona_restriccion", 
+      "name": "zona_restriccion",
+      "coordinates": [...]
+    }
+  ]
+}
 ```
 
 ### Instrucciones de Uso Interactivo
@@ -235,7 +299,7 @@ uv run src/main.py \
 -- Eventos de la última hora
 SELECT * FROM zone_events WHERE time >= NOW() - INTERVAL '1 hour';
 
--- Actividad por intervalos de 5 minutos
+-- Actividad por intervalos de 5 minutos  
 SELECT 
     time_bucket('5 minutes', time) as periodo,
     COUNT(*) as eventos,
