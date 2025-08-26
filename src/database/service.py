@@ -184,7 +184,7 @@ class VideoAnalysisService:
     
     def save_zone_event(self, zone_id: UUID, track_id: int, event_type: str,
                         class_name: str, confidence: float, 
-                        position: List[int], timestamp_ms: int) -> bool:
+                        position: List[int], timestamp_ms: int, frame_number: int) -> bool:
         """Guarda un evento de zona."""
         if not self.current_analysis_id:
             logger.error("❌ No hay análisis activo")
@@ -202,12 +202,13 @@ class VideoAnalysisService:
             event = ZoneEvent.from_event_data(
                 video_analysis_id=self.current_analysis_id,
                 zone_id=zone_id,
+                timestamp_ms=timestamp_ms,
+                frame_number=frame_number,
                 track_id=track_id,
                 event_type=event_type,
                 class_name=class_name,
                 confidence=confidence,
                 position=position,
-                timestamp_ms=timestamp_ms,
                 analysis_start_time=self.analysis_start_time
             )
             
@@ -215,12 +216,13 @@ class VideoAnalysisService:
             
             cursor.execute("""
                 INSERT INTO zone_events (
-                    time, video_time_ms, video_analysis_id, zone_id, track_id, event_type,
+                    time, video_time_ms, frame_number, video_analysis_id, zone_id, track_id, event_type,
                     class_name, confidence, position_x, position_y
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 event.time,
                 event.video_time_ms,
+                event.frame_number,
                 str(event.video_analysis_id) if event.video_analysis_id else None,
                 str(event.zone_id) if event.zone_id else None,
                 event.track_id,
@@ -242,7 +244,7 @@ class VideoAnalysisService:
     
     def save_line_crossing(self, zone_id: UUID, track_id: int, direction: str,
                            class_name: str, confidence: float, 
-                           position: List[int], timestamp_ms: int) -> bool:
+                           position: List[int], timestamp_ms: int, frame_number: int) -> bool:
         """Guarda un cruce de línea."""
         if not self.current_analysis_id:
             logger.error("❌ No hay análisis activo")
@@ -261,6 +263,7 @@ class VideoAnalysisService:
                 video_analysis_id=self.current_analysis_id,
                 zone_id=zone_id,
                 timestamp_ms=timestamp_ms,
+                frame_number=frame_number,
                 track_id=track_id,
                 direction=direction,
                 class_name=class_name,
@@ -274,12 +277,13 @@ class VideoAnalysisService:
             # Consulta SQL ajustada para el esquema de TimescaleDB
             cursor.execute("""
                 INSERT INTO line_crossing_events (
-                    time, video_time_ms, video_analysis_id, zone_id, track_id, direction,
+                    time, video_time_ms, frame_number, video_analysis_id, zone_id, track_id, direction,
                     class_name, confidence, position_x, position_y
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 event.time,
                 event.video_time_ms,
+                event.frame_number,
                 str(event.video_analysis_id) if event.video_analysis_id else None,
                 str(event.zone_id) if event.zone_id else None,
                 event.track_id,

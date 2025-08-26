@@ -72,6 +72,8 @@ CREATE TABLE IF NOT EXISTS zones (
 -- =====================================================
 CREATE TABLE IF NOT EXISTS zone_events (
     time TIMESTAMPTZ NOT NULL,  -- Campo de tiempo requerido para TimescaleDB
+    video_time_ms INTEGER NOT NULL,  -- Timestamp relativo al video en milisegundos
+    frame_number INTEGER NOT NULL,  -- Número de frame donde ocurrió el evento
     video_analysis_id UUID NOT NULL REFERENCES video_analyses(id) ON DELETE CASCADE,
     zone_id UUID NOT NULL REFERENCES zones(id) ON DELETE CASCADE,
     track_id INTEGER NOT NULL,
@@ -89,12 +91,15 @@ SELECT create_hypertable('zone_events', 'time', if_not_exists => TRUE);
 CREATE INDEX IF NOT EXISTS idx_zone_events_time ON zone_events (time DESC);
 CREATE INDEX IF NOT EXISTS idx_zone_events_zone ON zone_events (zone_id, time DESC);
 CREATE INDEX IF NOT EXISTS idx_zone_events_track ON zone_events (track_id, time DESC);
+CREATE INDEX IF NOT EXISTS idx_zone_events_frame ON zone_events (frame_number DESC);
 
 -- =====================================================
 -- TABLA: CRUCES DE LÍNEA (HYPERTABLE)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS line_crossing_events (
     time TIMESTAMPTZ NOT NULL,  -- Campo de tiempo requerido para TimescaleDB
+    video_time_ms INTEGER NOT NULL,  -- Timestamp relativo al video en milisegundos
+    frame_number INTEGER NOT NULL,  -- Número de frame donde ocurrió el evento
     video_analysis_id UUID NOT NULL REFERENCES video_analyses(id) ON DELETE CASCADE,
     zone_id UUID NOT NULL REFERENCES zones(id) ON DELETE CASCADE,
     track_id INTEGER NOT NULL,
@@ -112,6 +117,7 @@ SELECT create_hypertable('line_crossing_events', 'time', if_not_exists => TRUE);
 CREATE INDEX IF NOT EXISTS idx_line_crossing_time ON line_crossing_events (time DESC);
 CREATE INDEX IF NOT EXISTS idx_line_crossing_zone ON line_crossing_events (zone_id, time DESC);
 CREATE INDEX IF NOT EXISTS idx_line_crossing_track ON line_crossing_events (track_id, time DESC);
+CREATE INDEX IF NOT EXISTS idx_line_crossing_frame ON line_crossing_events (frame_number DESC);
 
 -- =====================================================
 -- TABLA: ESTADÍSTICAS POR MINUTO (HYPERTABLE)
@@ -135,6 +141,12 @@ CREATE INDEX IF NOT EXISTS idx_minute_stats_analysis ON minute_statistics (video
 -- =====================================================
 -- POLÍTICAS DE COMPRESIÓN Y RETENCIÓN
 -- =====================================================
+
+-- Habilitar compresión en hypertables (requerido antes de políticas)
+ALTER TABLE frame_detections SET (timescaledb.compress = true);
+ALTER TABLE zone_events SET (timescaledb.compress = true);
+ALTER TABLE line_crossing_events SET (timescaledb.compress = true);
+ALTER TABLE minute_statistics SET (timescaledb.compress = true);
 
 -- Comprimir datos de detecciones después de 1 día
 SELECT add_compression_policy('frame_detections', INTERVAL '1 day');
@@ -162,7 +174,7 @@ SELECT add_retention_policy('minute_statistics', INTERVAL '1 year');
 -- VISTAS OPTIMIZADAS
 -- =====================================================
 
--- Vista de resumen de análisis
+-- Vista de resumen de análisis (optimizada sin frame_detections)
 CREATE OR REPLACE VIEW analysis_summary AS
 SELECT 
     va.id,
@@ -175,18 +187,17 @@ SELECT
     va.resolution_height,
     va.started_at,
     va.completed_at,
-    COUNT(DISTINCT fd.track_id) as unique_tracks,
-    COUNT(fd.*) as total_detections,
+    COUNT(DISTINCT ze.track_id) as unique_tracks,
     COUNT(ze.*) as total_zone_events,
     COUNT(lce.*) as total_line_crossings
 FROM video_analyses va
-LEFT JOIN frame_detections fd ON va.id = fd.video_analysis_id
 LEFT JOIN zone_events ze ON va.id = ze.video_analysis_id
 LEFT JOIN line_crossing_events lce ON va.id = lce.video_analysis_id
 GROUP BY va.id, va.video_path, va.model_name, va.status, va.total_frames, 
          va.fps, va.resolution_width, va.resolution_height, va.started_at, va.completed_at;
 
--- Vista de tracks únicos por análisis
+
+-- Vista de tracks únicos por análisis (basada en eventos de zona)
 CREATE OR REPLACE VIEW unique_tracks_per_analysis AS
 SELECT 
     video_analysis_id,
@@ -194,22 +205,21 @@ SELECT
     class_name,
     MIN(time) as first_seen,
     MAX(time) as last_seen,
-    COUNT(*) as total_detections
-FROM frame_detections
+    COUNT(*) as total_events
+FROM zone_events
 GROUP BY video_analysis_id, track_id, class_name;
 
 -- =====================================================
 -- FUNCIONES DE AGREGACIÓN
 -- =====================================================
 
--- Función para obtener estadísticas por hora
+-- Función para obtener estadísticas por hora (optimizada sin frame_detections)
 CREATE OR REPLACE FUNCTION get_hourly_stats(
     analysis_id UUID,
     hours_back INTEGER DEFAULT 24
 )
 RETURNS TABLE (
     hour TIMESTAMPTZ,
-    total_detections BIGINT,
     unique_tracks BIGINT,
     zone_events BIGINT,
     line_crossings BIGINT
@@ -217,18 +227,15 @@ RETURNS TABLE (
 BEGIN
     RETURN QUERY
     SELECT 
-        time_bucket('1 hour', fd.time) as hour,
-        COUNT(fd.*) as total_detections,
-        COUNT(DISTINCT fd.track_id) as unique_tracks,
+        time_bucket('1 hour', COALESCE(ze.time, lce.time)) as hour,
+        COUNT(DISTINCT COALESCE(ze.track_id, lce.track_id)) as unique_tracks,
         COUNT(ze.*) as zone_events,
         COUNT(lce.*) as line_crossings
-    FROM frame_detections fd
-    LEFT JOIN zone_events ze ON fd.video_analysis_id = ze.video_analysis_id 
-        AND time_bucket('1 hour', fd.time) = time_bucket('1 hour', ze.time)
-    LEFT JOIN line_crossing_events lce ON fd.video_analysis_id = lce.video_analysis_id 
-        AND time_bucket('1 hour', fd.time) = time_bucket('1 hour', lce.time)
-    WHERE fd.video_analysis_id = analysis_id
-        AND fd.time > NOW() - (hours_back || ' hours')::INTERVAL
+    FROM zone_events ze
+    FULL OUTER JOIN line_crossing_events lce ON ze.video_analysis_id = lce.video_analysis_id 
+        AND time_bucket('1 hour', ze.time) = time_bucket('1 hour', lce.time)
+    WHERE COALESCE(ze.video_analysis_id, lce.video_analysis_id) = analysis_id
+        AND COALESCE(ze.time, lce.time) > NOW() - (hours_back || ' hours')::INTERVAL
     GROUP BY hour
     ORDER BY hour;
 END;

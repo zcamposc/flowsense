@@ -655,7 +655,8 @@ def analizar_objeto_con_zonas(
                                         class_name=class_name,
                                         confidence=conf_float,
                                         position=[cx_int, cy_int],
-                                        timestamp_ms=timestamp_ms
+                                        timestamp_ms=timestamp_ms,
+                                        frame_number=frame_number
                                     )
                                     print(f"[BD] Evento de zona guardado: entrada en {real_zone_name}")
                         except Exception as e:
@@ -716,7 +717,8 @@ def analizar_objeto_con_zonas(
                             class_name=class_name,
                             confidence=conf_float,
                             position=[cx_int, cy_int],
-                            timestamp_ms=timestamp_ms
+                            timestamp_ms=timestamp_ms,
+                            frame_number=frame_number
                         )
                         print(f"[BD] Evento de zona guardado: exit para track {track_id}")
                 except Exception as e:
@@ -784,7 +786,8 @@ def analizar_objeto_con_zonas(
                                 class_name=class_name,
                                 confidence=conf_float,
                                 position=[cx_int, cy_int],
-                                timestamp_ms=timestamp_ms
+                                timestamp_ms=timestamp_ms,
+                                frame_number=frame_number
                             )
                             print(f"[BD] Cruce de línea guardado: {direction} para track {track_id}")
                     except Exception as e:

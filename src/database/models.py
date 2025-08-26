@@ -76,6 +76,7 @@ class ZoneEvent(BaseModel):
     id: Optional[UUID] = None
     time: datetime = Field(..., description="Timestamp absoluto (fecha ejecución + offset)")
     video_time_ms: int = Field(..., description="Timestamp relativo al video en milisegundos")
+    frame_number: int = Field(..., description="Número de frame donde ocurrió el evento")
     video_analysis_id: Optional[UUID] = None
     zone_id: Optional[UUID] = None
     track_id: int = Field(..., description="ID del track")
@@ -87,7 +88,7 @@ class ZoneEvent(BaseModel):
     
     @classmethod
     def from_event_data(cls, video_analysis_id: UUID, zone_id: UUID, 
-                       timestamp_ms: int, track_id: int, event_type: str,
+                       timestamp_ms: int, frame_number: int, track_id: int, event_type: str,
                        class_name: str, confidence: float, position: List[int],
                        analysis_start_time: Optional[datetime] = None):
         """Crea una instancia desde datos de evento."""
@@ -101,6 +102,7 @@ class ZoneEvent(BaseModel):
             video_analysis_id=video_analysis_id,
             time=time,
             video_time_ms=timestamp_ms,
+            frame_number=frame_number,
             zone_id=zone_id,
             track_id=track_id,
             event_type=event_type,
@@ -122,6 +124,7 @@ class LineCrossingEvent(BaseModel):
     id: Optional[UUID] = None
     time: datetime = Field(..., description="Timestamp absoluto (fecha ejecución + offset)")
     video_time_ms: int = Field(..., description="Timestamp relativo al video en milisegundos")
+    frame_number: int = Field(..., description="Número de frame donde ocurrió el evento")
     video_analysis_id: Optional[UUID] = None
     zone_id: Optional[UUID] = None
     track_id: int = Field(..., description="ID del track")
@@ -133,7 +136,7 @@ class LineCrossingEvent(BaseModel):
     
     @classmethod
     def from_crossing_data(cls, video_analysis_id: UUID, zone_id: UUID,
-                          timestamp_ms: int, track_id: int, direction: str,
+                          timestamp_ms: int, frame_number: int, track_id: int, direction: str,
                           class_name: str, confidence: float, 
                           position: List[int],
                           analysis_start_time: Optional[datetime] = None):
@@ -148,6 +151,7 @@ class LineCrossingEvent(BaseModel):
             video_analysis_id=video_analysis_id,
             time=time,
             video_time_ms=timestamp_ms,
+            frame_number=frame_number,
             zone_id=zone_id,
             track_id=track_id,
             direction=direction,
@@ -159,7 +163,7 @@ class LineCrossingEvent(BaseModel):
     
     @classmethod
     def from_event_data(cls, video_analysis_id: UUID, zone_id: UUID,
-                       timestamp_ms: int, track_id: int, direction: str,
+                       timestamp_ms: int, frame_number: int, track_id: int, direction: str,
                        class_name: str, confidence: float, 
                        position: List[int],
                        analysis_start_time: Optional[datetime] = None):
@@ -168,6 +172,7 @@ class LineCrossingEvent(BaseModel):
             video_analysis_id=video_analysis_id,
             zone_id=zone_id,
             timestamp_ms=timestamp_ms,
+            frame_number=frame_number,
             track_id=track_id,
             direction=direction,
             class_name=class_name,
