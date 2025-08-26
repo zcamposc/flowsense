@@ -32,3 +32,34 @@ logs/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Large files (>50MB) - GitHub limit is 100MB
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.wmv
+*.flv
+*.webm
+
+# Large model files - download separately
+models/yolov8x.pt
+models/yolov8l.pt
+models/*.weights
+
+# Video processing outputs
+outputs/videos/
+outputs/*.mp4
+outputs/*_stats_*.mp4
+
+# Large data files
+data/videos/*.mp4
+data/videos/*.avi
+data/videos/*.mov
+data/videos/*.mkv
+data/large_datasets/
+
+# Temporary processing files
+*.tmp
+temp_*
+processing_*
