@@ -43,13 +43,13 @@ Thumbs.db
 *.webm
 
 # Large model files - download separately
-models/yolov8x.pt
-models/yolov8l.pt
+models/*.pt
 models/*.weights
 
 # Video processing outputs
 outputs/videos/
 outputs/*.mp4
+outputs/*csv_analysis_*/
 outputs/*_stats_*.mp4
 
 # Large data files
