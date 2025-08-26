@@ -59,6 +59,8 @@ Descargar los modelos necesarios en la carpeta `models/`:
 - `yolov8m.pt` (medio - balance)
 - `yolov8x.pt` (extra-large - más preciso)
 
+**Descarga oficial**: [Yolo Models](https://docs.ultralytics.com/models/)
+
 ## Uso Básico
 
 ### Comando Principal
@@ -81,6 +83,11 @@ uv run src/main.py --video-path "data/videos/video.mp4" --model-path "models/yol
 ```
 
 ### Parámetros Disponibles
+
+```bash
+# Ver parametros disponibles
+uv run src/main.py --help
+```
 
 | Parámetro | Tipo | Requerido | Descripción |
 |-----------|------|-----------|-------------|
