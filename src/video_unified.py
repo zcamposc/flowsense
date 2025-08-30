@@ -245,6 +245,12 @@ def procesar_video_unificado(
     ids_en_zona: Dict[int, Set[str]] = {}  # track_id -> set of zone_ids
     ids_cruzaron_linea: Set[int] = set()
     
+    # Contadores de entradas y salidas para líneas
+    line_counters = {
+        'left_to_right': 0,  # Entradas (izquierda a derecha)
+        'right_to_left': 0   # Salidas (derecha a izquierda)
+    }
+    
     # Contadores de frame
     frame_count = 0
 
@@ -438,7 +444,8 @@ def procesar_video_unificado(
                                     zones_config=zones_config_list,
                                     conf=conf,
                                     db_service=db_service, # Pasar el servicio de base de datos
-                                    zone_name_mapping=zone_name_mapping # Pasar el mapeo de nombres
+                                    zone_name_mapping=zone_name_mapping, # Pasar el mapeo de nombres
+                                    line_counters=line_counters  # Pasar los contadores
                                 )
                 
             # Mostrar estadísticas en tiempo real
@@ -447,6 +454,14 @@ def procesar_video_unificado(
                 frame, stats_text,
                 (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2
             )
+            
+            # Mostrar contadores de líneas si están habilitadas
+            if enable_zones and lines:
+                counter_text = f"Entradas: {line_counters['right_to_left']} | Salidas: {line_counters['left_to_right']}"
+                cv2.putText(
+                    frame, counter_text,
+                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2
+                )
 
             # Visualizar zonas si está habilitado
             if enable_zones:
@@ -556,6 +571,13 @@ def procesar_video_unificado(
         print(f"\n📍 RESUMEN DE ZONAS:")
         print(f"   • Objetos en zonas: {sum(len(zones) for zones in ids_en_zona.values())}")
         print(f"   • Objetos cruzando líneas: {len(ids_cruzaron_linea)}")
+        
+        # Mostrar contadores finales de líneas
+        if lines:
+            print(f"\n🔢 CONTADORES FINALES DE LÍNEAS:")
+            print(f"   • 🟢 Entradas (der→izq): {line_counters['right_to_left']}")
+            print(f"   • 🔴 Salidas (izq→der): {line_counters['left_to_right']}")
+            print(f"   • 📊 Total cruces: {line_counters['left_to_right'] + line_counters['right_to_left']}")
     
     print(f"{'='*60}")
 
@@ -577,7 +599,8 @@ def analizar_objeto_con_zonas(
     zones_config: List[Tuple] = None,
     conf: float = 0.0, # Added conf parameter
     db_service = None,  # Servicio de base de datos
-    zone_name_mapping: Dict[str, str] = None # Mapeo de nombres personalizados
+    zone_name_mapping: Dict[str, str] = None, # Mapeo de nombres personalizados
+    line_counters: Dict[str, int] = None  # Contadores de líneas
 ) -> None:
     """
     Analiza un objeto detectado: posición, trayectoria y eventos de zonas.
@@ -729,17 +752,27 @@ def analizar_objeto_con_zonas(
         for i, linea in enumerate(lines):
             if (cruza_linea(pts[-2], pts[-1], linea) and track_id not in ids_cruzaron_linea):
                 ids_cruzaron_linea.add(track_id)
-                print(f"[ALERTA] {class_name} ID {track_id} ha cruzado línea de interés.")
+                
+                # Determinar dirección del cruce
+                prev_x, prev_y = pts[-2]
+                direction = "left_to_right" if cx > prev_x else "right_to_left"
+                
+                # INCREMENTAR CONTADORES
+                if line_counters is not None:
+                    if direction == "left_to_right":
+                        line_counters['left_to_right'] += 1
+                        print(f"[CONTADOR] 🟢 SALIDA #{line_counters['left_to_right']}: {class_name} ID {track_id} (izq→der)")
+                    else:
+                        line_counters['right_to_left'] += 1
+                        print(f"[CONTADOR] 🔴 ENTRADA #{line_counters['right_to_left']}: {class_name} ID {track_id} (der→izq)")
+                
+                print(f"[ALERTA] {class_name} ID {track_id} ha cruzado línea de interés ({direction}).")
                 
                 # Guardar cruce usando módulo de persistencia
                 if persistence_writer and zones_config:
                     for zone_id, zone_type, zone_coords in zones_config:
                         if zone_type == "line" and zone_coords == linea:
                             try:
-                                # Determinar dirección del cruce
-                                prev_x, prev_y = pts[-2]
-                                direction = "left_to_right" if cx > prev_x else "right_to_left"
-                                
                                 line_name = f"line_{zone_id.split('_')[-1]}"
                                 persistence_writer.check_line_crossing(
                                     track_id=track_id,
