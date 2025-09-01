@@ -1,0 +1,1 @@
+Frame	Objetos_Detectados	IDs_Confirmados	IDs_Unicos	En_Zonas	Cruzaron_Lineas

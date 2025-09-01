@@ -122,8 +122,24 @@ def procesar_video_unificado(
 
     # Cargar zonas de interés si está habilitado
     lines, polygons = [], []
+    zone_name_mapping = {}  # Mapeo de nombres generados a nombres reales - siempre inicializado
+    zone_names = {}  # Nombres personalizados de zonas
+    
     if enable_zones:
         lines, polygons = cargar_zonas_desde_json(zones_config)
+        # Cargar nombres personalizados de zonas si están disponibles
+        zone_names = cargar_nombres_zonas(zones_config)
+        
+        # Construir mapeo de nombres para todas las zonas
+        if polygons:
+            for i, polygon in enumerate(polygons):
+                zone_id = zone_names.get(f"polygon_{i+1}", f"zone_polygon_{i+1}")
+                zone_name_mapping[f"polygon_{i+1}"] = zone_id
+        
+        if lines:
+            for i, line in enumerate(lines):
+                line_id = zone_names.get(f"line_{i+1}", f"zone_line_{i+1}")
+                zone_name_mapping[f"line_{i+1}"] = line_id
 
     # Inicializar módulo de persistencia
     persistence_writer = None
@@ -136,9 +152,6 @@ def procesar_video_unificado(
             
             # Inicializar escritor de CSV
             persistence_writer = CSVWriter(csv_output_dir)
-            
-            # Cargar nombres personalizados de zonas si están disponibles
-            zone_names = cargar_nombres_zonas(zones_config)
             
             # Configurar zonas para el escritor
             if enable_zones and polygons:
@@ -188,8 +201,6 @@ def procesar_video_unificado(
                 print(f"🗄️  Base de datos iniciada - Análisis ID: {analysis_id}")
                 
                 # Agregar zonas a la base de datos si están habilitadas
-                zone_name_mapping = {}  # Mapeo de nombres generados a nombres reales
-                
                 if enable_zones and polygons:
                     print("🗄️  Agregando zonas de polígonos...")
                     for i, polygon in enumerate(polygons):
@@ -199,8 +210,7 @@ def procesar_video_unificado(
                             zone_type="polygon",
                             coordinates=polygon
                         )
-                        # Guardar mapeo: nombre generado -> nombre real
-                        zone_name_mapping[f"polygon_{i+1}"] = zone_name
+
                         print(f"🗄️  Zona agregada: {zone_name} (ID: {zone_id})")
                 
                 if enable_zones and lines:
@@ -213,8 +223,7 @@ def procesar_video_unificado(
                             zone_type="line",
                             coordinates=line
                         )
-                        # Guardar mapeo: nombre generado -> nombre real
-                        zone_name_mapping[f"line_{i+1}"] = line_name
+
                         print(f"🗄️  Línea agregada: {line_name} (ID: {zone_id})")
                         
             except Exception as e:
