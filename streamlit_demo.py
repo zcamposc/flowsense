@@ -45,12 +45,122 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Configurar límite de carga de archivos (en MB)
+# Por defecto Streamlit tiene límite de 200MB
+# Puedes aumentarlo con esta configuración
+MAX_FILE_SIZE_MB = 1000  # Aumentar a 1GB
+st.write(f"Límite máximo de archivo: {MAX_FILE_SIZE_MB} MB")
+
 # Título principal
 st.title("🎥 FlowSense - Inteligencia que entiende el flujo de tu cliente")
 st.markdown("**Demo interactivo para análisis de video con detección de personas, tracking y análisis de zonas**")
 
 # Sidebar para configuración
 st.sidebar.header("⚙️ Configuración")
+
+# Selector de tema
+st.sidebar.subheader("🎨 Tema")
+theme_option = st.sidebar.selectbox(
+    "Seleccionar tema",
+    ["Automático (sistema)", "Claro", "Oscuro"],
+    help="Cambia el tema de la interfaz. 'Automático' usa la configuración de tu sistema."
+)
+
+# Aplicar tema dinámicamente
+def apply_theme(theme_choice):
+    """Aplica el tema seleccionado mediante CSS personalizado"""
+    if theme_choice == "Claro":
+        st.markdown("""
+        <style>
+        /* Tema claro mejorado */
+        .stApp {
+            background-color: #FFFFFF !important;
+            color: #262730 !important;
+        }
+        .stSidebar {
+            background-color: #F0F2F6 !important;
+        }
+        .stSidebar .stSelectbox > div > div {
+            background-color: #FFFFFF !important;
+            color: #262730 !important;
+        }
+        .stButton > button {
+            background-color: #FF6B6B !important;
+            color: #FFFFFF !important;
+            border: none !important;
+        }
+        .stButton > button[data-testid="baseButton-secondary"] {
+            background-color: #6C757D !important;
+            color: #FFFFFF !important;
+        }
+        .stTextInput > div > div > input {
+            background-color: #FFFFFF !important;
+            color: #262730 !important;
+            border: 1px solid #D1D5DB !important;
+        }
+        .stSlider > div > div > div {
+            color: #262730 !important;
+        }
+        .stCheckbox > label {
+            color: #262730 !important;
+        }
+        .stRadio > label {
+            color: #262730 !important;
+        }
+        .stSelectbox > label {
+            color: #262730 !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+    elif theme_choice == "Oscuro":
+        st.markdown("""
+        <style>
+        /* Tema oscuro mejorado */
+        .stApp {
+            background-color: #0E1117 !important;
+            color: #FAFAFA !important;
+        }
+        .stSidebar {
+            background-color: #262730 !important;
+        }
+        .stSidebar .stSelectbox > div > div {
+            background-color: #262730 !important;
+            color: #FAFAFA !important;
+        }
+        .stButton > button {
+            background-color: #FF6B6B !important;
+            color: #FFFFFF !important;
+            border: none !important;
+        }
+        .stButton > button[data-testid="baseButton-secondary"] {
+            background-color: #6C757D !important;
+            color: #FFFFFF !important;
+        }
+        .stTextInput > div > div > input {
+            background-color: #262730 !important;
+            color: #FAFAFA !important;
+            border: 1px solid #4B5563 !important;
+        }
+        .stSlider > div > div > div {
+            color: #FAFAFA !important;
+        }
+        .stCheckbox > label {
+            color: #FAFAFA !important;
+        }
+        .stRadio > label {
+            color: #FAFAFA !important;
+        }
+        .stSelectbox > label {
+            color: #FAFAFA !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+if theme_option != "Automático (sistema)":
+    apply_theme(theme_option)
+    st.sidebar.info(f"💡 Tema aplicado: {theme_option}")
+
+st.sidebar.markdown("---")
 st.sidebar.markdown("**Clase detectada:** Personas")
 st.sidebar.markdown("**Lugar:** Punto de venta de motos")
 
@@ -74,10 +184,17 @@ def run_video_analysis(video_file: Any, model_path: str, config: Dict[str, Any])
     try:
         logger.info(f"Iniciando análisis con modelo: {model_path}")
         
-        # Crear archivo temporal para el video
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp_video:
+        # Crear archivo temporal para el video con nombre descriptivo
+        # Obtener nombre original del archivo
+        original_name = os.path.splitext(video_file.name)[0]
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Crear archivo temporal con nombre más descriptivo
+        temp_dir = tempfile.gettempdir()
+        tmp_video_path = os.path.join(temp_dir, f"streamlit_{original_name}_{timestamp}.mp4")
+        
+        with open(tmp_video_path, 'wb') as tmp_video:
             tmp_video.write(video_file.read())
-            tmp_video_path = tmp_video.name
         
         # Verificar que el modelo existe
         if not os.path.exists(model_path):
@@ -90,31 +207,21 @@ def run_video_analysis(video_file: Any, model_path: str, config: Dict[str, Any])
         
         # Construir comando
         cmd = [
-            sys.executable, cli_path, ##"process",
+            sys.executable, cli_path,
             "--video-path", tmp_video_path,
-            "--model-path", model_path,
-            "--save-video", ##"true",
-            "--show"##, "false"
+            "--model-path", model_path
         ]
+        
+        # Agregar flags de visualización
+        if config.get("save_video", True):
+            cmd.append("--save-video")
+        else:
+            cmd.append("--no-save-video")
             
-            
-            
-        # cmd = [
-        #         sys.executable, cli_path, ## "process",
-        #         "--video-path", tmp_video_path,
-        #         "--model-path", model_path,
-        # ]
-
-        # # Flags booleanos (sin pasar "true"/"false")
-        # if config.get("save_video", True):
-        #     cmd.append("--save-video")
-        # else:
-        #     cmd.append("--no-save-video")
-
-        # if config.get("show", True):
-        #     cmd.append("--show")
-        # else:
-        #     cmd.append("--no-show")
+        if config.get("show_processing", False):
+            cmd.append("--show")
+        else:
+            cmd.append("--no-show")
         
         # Agregar parámetros opcionales
         if config.get('classes'):
@@ -133,13 +240,16 @@ def run_video_analysis(video_file: Any, model_path: str, config: Dict[str, Any])
         
         logger.info(f"Ejecutando comando: {' '.join(cmd)}")
         
-        # Ejecutar comando
+        # Ejecutar comando con timeout configurable
+        timeout_minutes = config.get('timeout_minutes', 30)  # Por defecto 30 minutos
+        timeout_seconds = timeout_minutes * 60
+        
         result = subprocess.run(
             cmd, 
             capture_output=True, 
             text=True, 
             cwd=os.getcwd(),
-            timeout=300  # 5 minutos de timeout
+            timeout=timeout_seconds
         )
         
         logger.info(f"Análisis completado con código: {result.returncode}")
@@ -147,8 +257,27 @@ def run_video_analysis(video_file: Any, model_path: str, config: Dict[str, Any])
         return result.returncode == 0, result.stdout, result.stderr
         
     except subprocess.TimeoutExpired:
-        logger.error("Análisis excedió el tiempo límite")
-        return False, "", "Análisis excedió el tiempo límite de 5 minutos"
+        timeout_msg = f"Análisis excedió el tiempo límite de {timeout_minutes} minutos"
+        logger.error(timeout_msg)
+        
+        # Buscar resultados parciales
+        outputs_dir = "outputs"
+        partial_results_msg = "\n\n⚠️ RESULTADOS PARCIALES DISPONIBLES:\n"
+        
+        if os.path.exists(outputs_dir):
+            # Buscar CSV parciales
+            csv_dirs = [d for d in os.listdir(outputs_dir) if d.startswith('csv_analysis_')]
+            if csv_dirs:
+                latest_csv_dir = max(csv_dirs, key=lambda x: os.path.getctime(os.path.join(outputs_dir, x)))
+                partial_results_msg += f"• Datos CSV parciales en: {latest_csv_dir}\n"
+            
+            # Buscar video parcial
+            video_files = [f for f in os.listdir(outputs_dir) if f.endswith('.mp4')]
+            if video_files:
+                latest_video = max(video_files, key=lambda x: os.path.getctime(os.path.join(outputs_dir, x)))
+                partial_results_msg += f"• Video parcial disponible: {latest_video}\n"
+        
+        return False, partial_results_msg, timeout_msg
     except Exception as e:
         logger.error(f"Error durante el análisis: {e}")
         return False, "", str(e)
@@ -318,20 +447,54 @@ classes_input = st.sidebar.text_input(
 )
 
 # Umbral de confianza
-conf_threshold = st.sidebar.slider(
-    "Umbral de confianza",
-    min_value=0.1,
-    max_value=1.0,
-    value=0.5,
-    step=0.05,
-    help="Confianza mínima para considerar una detección válida"
+use_default_conf = st.sidebar.checkbox(
+    "Usar umbral por defecto del modelo",
+    value=True,
+    help="Si está marcado, usa la configuración por defecto de YOLO (recomendado)"
 )
+
+if use_default_conf:
+    conf_threshold = None
+    st.sidebar.info("🎯 Usando configuración por defecto de YOLO")
+else:
+    conf_threshold = st.sidebar.slider(
+        "Umbral de confianza personalizado",
+        min_value=0.1,
+        max_value=1.0,
+        value=0.5,
+        step=0.05,
+        help="Confianza mínima para considerar una detección válida"
+    )
 
 # Configuración de estadísticas
 enable_stats = st.sidebar.checkbox(
     "📊 Generar estadísticas",
     value=True,
     help="Genera estadísticas detalladas por frame"
+)
+
+# Configuración de visualización
+st.sidebar.subheader("🖥️ Visualización")
+show_processing = st.sidebar.checkbox(
+    "Mostrar procesamiento en tiempo real",
+    value=False,
+    help="Muestra una ventana con el video siendo procesado (puede ralentizar el procesamiento)"
+)
+
+save_video = st.sidebar.checkbox(
+    "Guardar video procesado",
+    value=True,
+    help="Guarda el video con las detecciones y análisis"
+)
+
+# Configuración de timeout
+timeout_minutes = st.sidebar.slider(
+    "Tiempo límite (minutos)",
+    min_value=5,
+    max_value=120,
+    value=30,
+    step=5,
+    help="Tiempo máximo para el procesamiento antes de detenerse automáticamente"
 )
 
 # Configuración de zonas
@@ -345,11 +508,19 @@ zones_config = None
 if enable_zones:
     # Mostrar archivos de configuración disponibles
     configs_dir = Path("configs")
-    available_configs = [str(p) for p in configs_dir.rglob("*.json")]
+    available_configs = []
+    
+    # Buscar archivos JSON en subdirectorios de configs
     if os.path.exists(configs_dir):
-        for file in os.listdir(configs_dir):
-            if file.endswith('.json'):
-                available_configs.append(os.path.join(configs_dir, file))
+        for subdir in configs_dir.iterdir():
+            if subdir.is_dir():
+                json_file = subdir / "zonas.json"
+                if json_file.exists():
+                    available_configs.append(str(json_file))
+        
+        # También buscar archivos JSON directamente en configs
+        for file in configs_dir.glob("*.json"):
+            available_configs.append(str(file))
     
     if available_configs:
         selected_config = st.sidebar.selectbox(
@@ -358,11 +529,53 @@ if enable_zones:
             help="Selecciona un archivo JSON con la configuración de zonas"
         )
         zones_config = selected_config
+        
+        # Mostrar preview de la zona si existe la imagen
+        if selected_config:
+            config_path = Path(selected_config)
+            visual_image_path = config_path.parent / "zonas_visual.png"
+            
+            if visual_image_path.exists():
+                st.sidebar.subheader("🖼️ Vista previa de zonas")
+                st.sidebar.image(
+                    str(visual_image_path), 
+                    caption=f"Configuración: {config_path.parent.name}",
+                    use_container_width=True
+                )
+                
+                # Mostrar información adicional de la configuración
+                try:
+                    import json
+                    with open(selected_config, 'r') as f:
+                        zone_data = json.load(f)
+                    
+                    lines_count = len(zone_data.get('lines', []))
+                    polygons_count = len(zone_data.get('polygons', []))
+                    
+                    st.sidebar.info(f"📊 Líneas: {lines_count} | Polígonos: {polygons_count}")
+                    
+                    # Mostrar nombres de las zonas si existen
+                    if lines_count > 0:
+                        st.sidebar.markdown("**Líneas configuradas:**")
+                        for i, line in enumerate(zone_data.get('lines', []), 1):
+                            line_name = line.get('name', f'Línea {i}')
+                            st.sidebar.markdown(f"• {line_name}")
+                    
+                    if polygons_count > 0:
+                        st.sidebar.markdown("**Polígonos configurados:**")
+                        for i, polygon in enumerate(zone_data.get('polygons', []), 1):
+                            poly_name = polygon.get('name', f'Polígono {i}')
+                            st.sidebar.markdown(f"• {poly_name}")
+                            
+                except Exception as e:
+                    st.sidebar.warning(f"No se pudo leer la configuración: {e}")
+            else:
+                st.sidebar.info("💡 No hay imagen de vista previa disponible")
     else:
         st.sidebar.warning("No se encontraron archivos de configuración de zonas")
 
 # Área principal
-tab1, tab2, tab3, tab4 = st.tabs(["📹 Análisis de Video", "📊 Estadísticas", "📍 Eventos de Zonas", "📈 Gráficos"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📹 Análisis de Video", "📊 Estadísticas", "📍 Eventos de Zonas", "📈 Gráficos", "🖼️ Configuración de Zonas"])
 
 with tab1:
     st.header("Análisis de Video")
@@ -371,10 +584,17 @@ with tab1:
     uploaded_file = st.file_uploader(
         "Selecciona un video para analizar",
         type=['mp4', 'avi', 'mov', 'mkv'],
-        help="Formatos soportados: MP4, AVI, MOV, MKV"
+        help=f"Formatos soportados: MP4, AVI, MOV, MKV. Límite máximo: {MAX_FILE_SIZE_MB} MB"
     )
     
     if uploaded_file is not None:
+        # Validar tamaño del archivo
+        file_size_mb = uploaded_file.size / (1024*1024)
+        if file_size_mb > MAX_FILE_SIZE_MB:
+            st.error(f"❌ El archivo es demasiado grande ({file_size_mb:.2f} MB). El límite máximo es {MAX_FILE_SIZE_MB} MB.")
+            st.info("💡 Para archivos más grandes, considera usar el CLI directamente desde la terminal.")
+            st.stop()
+        
         # Mostrar información del video
         st.subheader("📋 Información del Video")
         col1, col2, col3 = st.columns(3)
@@ -382,63 +602,141 @@ with tab1:
         with col1:
             st.metric("Nombre del archivo", uploaded_file.name)
         with col2:
-            st.metric("Tamaño", f"{uploaded_file.size / (1024*1024):.2f} MB")
+            st.metric("Tamaño", f"{file_size_mb:.2f} MB")
         with col3:
             st.metric("Tipo", uploaded_file.type)
         
+        # Mostrar resumen de configuración antes del análisis
+        st.subheader("📋 Resumen de Configuración")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**Modelo:** {os.path.basename(selected_model)}")
+            st.write(f"**Clases:** {'Todas' if not classes_input else classes_input}")
+            st.write(f"**Confianza:** {'Por defecto' if conf_threshold is None else f'{conf_threshold:.2f}'}")
+            st.write(f"**Estadísticas:** {'✅ Sí' if enable_stats else '❌ No'}")
+        
+        with col2:
+            st.write(f"**Zonas:** {'✅ Sí' if enable_zones else '❌ No'}")
+            if enable_zones and zones_config:
+                config_name = Path(zones_config).parent.name
+                st.write(f"**Config. Zonas:** {config_name}")
+            st.write(f"**Guardar Video:** {'✅ Sí' if save_video else '❌ No'}")
+            st.write(f"**Tiempo Límite:** {timeout_minutes} minutos")
+        
         # Botón para ejecutar análisis
-        if st.button("🚀 Ejecutar Análisis con video de prueba", type="primary"):
-            with st.spinner("Ejecutando análisis de video..."):
-                # Configuración del análisis
-                config = {
-                    'classes': classes_input if classes_input else None,
-                    'conf_threshold': conf_threshold,
-                    'enable_stats': enable_stats,
-                    'enable_zones': enable_zones,
-                    'zones_config': zones_config
-                }
-                
-                # Ejecutar análisis
+        if st.button("🚀 Ejecutar Análisis", type="primary"):
+            # Mostrar información sobre cómo detener el análisis
+            st.info("⚠️ **Importante:** Una vez iniciado el análisis, para detenerlo completamente debes:")
+            st.markdown("""
+            1. **Presionar `Ctrl+C`** en la terminal donde corre Streamlit
+            2. **Volver a ejecutar** `uv run streamlit run streamlit_demo.py`
+            3. Los **resultados parciales** se guardarán automáticamente
+            """)
+            
+            # Mostrar progreso estimado
+            file_size_gb = file_size_mb / 1024
+            estimated_time = max(5, int(file_size_gb * 10))  # Estimación básica
+            st.warning(f"⏱️ Tiempo estimado: ~{estimated_time} minutos (basado en {file_size_mb:.1f} MB)")
+            
+            # Crear indicadores de progreso
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            time_text = st.empty()
+            
+            # Configuración del análisis
+            config = {
+                'classes': classes_input if classes_input else None,
+                'conf_threshold': conf_threshold,
+                'enable_stats': enable_stats,
+                'enable_zones': enable_zones,
+                'zones_config': zones_config,
+                'show_processing': show_processing,
+                'save_video': save_video,
+                'timeout_minutes': timeout_minutes
+            }
+            
+            # Mostrar progreso inicial
+            status_text.text("🚀 Iniciando análisis...")
+            progress_bar.progress(10)
+            
+            import time
+            start_time = time.time()
+            
+            # Ejecutar análisis
+            with st.spinner("Procesando video..."):
                 success, stdout, stderr = run_video_analysis(uploaded_file, selected_model, config)
+            
+            # Calcular tiempo transcurrido
+            elapsed_time = time.time() - start_time
+            time_text.success(f"⏱️ Tiempo de procesamiento: {elapsed_time/60:.1f} minutos")
+            progress_bar.progress(100)
+            
+            if success:
+                st.success("✅ Análisis completado exitosamente!")
                 
-                if success:
-                    st.success("✅ Análisis completado exitosamente!")
-                    
-                    # Mostrar salida del comando
+                # Mostrar salida del comando
+                if stdout:
+                    st.text_area("Salida del análisis:", stdout, height=200)
+            else:
+                # Verificar si es timeout y hay resultados parciales
+                if "tiempo límite" in stderr and "RESULTADOS PARCIALES" in stdout:
+                    st.warning("⏱️ Análisis interrumpido por tiempo límite")
+                    st.info("📊 Se encontraron resultados parciales que puedes revisar:")
                     if stdout:
-                        st.text_area("Salida del análisis:", stdout, height=200)
+                        st.text_area("Resultados parciales:", stdout, height=150)
                     
-                    # Buscar archivos de salida
-                    outputs_dir = "outputs"
-                    if os.path.exists(outputs_dir):
-                        # Buscar el directorio más reciente
-                        dirs = [d for d in os.listdir(outputs_dir) if d.startswith('csv_analysis_')]
-                        if dirs:
-                            latest_dir = max(dirs, key=lambda x: os.path.getctime(os.path.join(outputs_dir, x)))
-                            output_dir = os.path.join(outputs_dir, latest_dir)
-                            
-                            # Buscar video de salida
-                            video_files = [f for f in os.listdir(outputs_dir) if f.endswith('.mp4')]
-                            if video_files:
-                                latest_video = max(video_files, key=lambda x: os.path.getctime(os.path.join(outputs_dir, x)))
-                                video_path = os.path.join(outputs_dir, latest_video)
+                    # Intentar cargar datos parciales
+                    try:
+                        outputs_dir = "outputs"
+                        if os.path.exists(outputs_dir):
+                            # Buscar el directorio CSV más reciente
+                            csv_dirs = [d for d in os.listdir(outputs_dir) if d.startswith('csv_analysis_')]
+                            if csv_dirs:
+                                latest_dir = max(csv_dirs, key=lambda x: os.path.getctime(os.path.join(outputs_dir, x)))
+                                output_dir = os.path.join(outputs_dir, latest_dir)
                                 
-                                st.subheader("🎬 Video Procesado")
-                                display_video(video_path)
-                            
-                            # Cargar datos CSV
-                            csv_data = load_csv_data(output_dir)
-                            
-                            # Guardar datos en session state para otras pestañas
-                            st.session_state.csv_data = csv_data
-                            st.session_state.output_dir = output_dir
-                            
+                                # Cargar datos parciales
+                                csv_data = load_csv_data(output_dir)
+                                st.session_state.csv_data = csv_data
+                                st.session_state.output_dir = output_dir
+                                
+                                st.success("📈 Datos parciales cargados. Revisa las pestañas de estadísticas y gráficos.")
+                    except Exception as e:
+                        st.error(f"Error al cargar datos parciales: {e}")
                 else:
                     st.error("❌ Error durante el análisis:")
                     if stderr:
                         st.text_area("Error:", stderr, height=200)
                     if stdout:
                         st.text_area("Salida:", stdout, height=200)
+                    # No continuar con el procesamiento de archivos si hay error
+                    success = False
+                
+            # Buscar archivos de salida (para éxito o resultados parciales)
+            if success or ("RESULTADOS PARCIALES" in stdout):
+                outputs_dir = "outputs"
+                if os.path.exists(outputs_dir):
+                    # Buscar el directorio CSV más reciente
+                    dirs = [d for d in os.listdir(outputs_dir) if d.startswith('csv_analysis_')]
+                    if dirs:
+                        latest_dir = max(dirs, key=lambda x: os.path.getctime(os.path.join(outputs_dir, x)))
+                        output_dir = os.path.join(outputs_dir, latest_dir)
+                        
+                        # Buscar video de salida
+                        video_files = [f for f in os.listdir(outputs_dir) if f.endswith('.mp4')]
+                        if video_files:
+                            latest_video = max(video_files, key=lambda x: os.path.getctime(os.path.join(outputs_dir, x)))
+                            video_path = os.path.join(outputs_dir, latest_video)
+                            
+                            st.subheader("🎬 Video Procesado")
+                            display_video(video_path)
+                        
+                        # Cargar datos CSV si no se han cargado ya
+                        if 'csv_data' not in st.session_state:
+                            csv_data = load_csv_data(output_dir)
+                            st.session_state.csv_data = csv_data
+                            st.session_state.output_dir = output_dir
 
 with tab2:
     st.header("📊 Estadísticas del Análisis")
@@ -501,8 +799,8 @@ with tab3:
     if 'csv_data' in st.session_state and st.session_state.csv_data:
         csv_data = st.session_state.csv_data
         
-        # Eventos de zonas
-        if csv_data.get('zone_events') is not None:
+        # Eventos de zonas (polígonos)
+        if csv_data.get('zone_events') is not None and len(csv_data['zone_events']) > 0:
             st.subheader("Entradas y Salidas de Zonas")
             df_zones = csv_data['zone_events']
             
@@ -523,19 +821,22 @@ with tab3:
             # Tabla de eventos
             st.subheader("Eventos de Zona")
             st.dataframe(df_zones, use_container_width=True)
+        elif csv_data.get('zone_events') is not None:
+            st.info("📍 No se detectaron eventos de zona (entradas/salidas de polígonos)")
+            st.info("💡 Tu configuración actual solo tiene líneas. Para eventos de zona, agrega polígonos a la configuración.")
         
         # Cruces de líneas
-        if csv_data.get('line_crossing_events') is not None:
-            st.subheader("Cruces de Líneas")
+        if csv_data.get('line_crossing_events') is not None and len(csv_data['line_crossing_events']) > 0:
+            st.subheader("🔄 Cruces de Líneas")
             df_lines = csv_data['line_crossing_events']
             
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Total Cruces", len(df_lines))
             with col2:
-                st.metric("Salidas: Izq → Der", len(df_lines[df_lines['direction'] == 'left_to_right']))
+                st.metric("🟢 Salidas (Izq → Der)", len(df_lines[df_lines['direction'] == 'left_to_right']))
             with col3:
-                st.metric("Entradas: Der → Izq", len(df_lines[df_lines['direction'] == 'right_to_left']))
+                st.metric("🔴 Entradas (Der → Izq)", len(df_lines[df_lines['direction'] == 'right_to_left']))
             
             # Gráfico de cruces por dirección
             # direction_counts = df_lines['direction'].value_counts()
@@ -557,10 +858,25 @@ with tab3:
             st.plotly_chart(fig, use_container_width=True)
             
             # Tabla de cruces
-            st.subheader("Cruces de Línea")
+            st.subheader("📋 Detalles de Cruces")
             st.dataframe(df_lines, use_container_width=True)
+        elif csv_data.get('line_crossing_events') is not None:
+            st.info("🔄 No se detectaron cruces de líneas en este análisis")
+            st.info("💡 Verifica que los objetos crucen las líneas configuradas")
+        
+        # Mensaje si no hay datos de zonas ni líneas
+        if (csv_data.get('zone_events') is None or len(csv_data['zone_events']) == 0) and \
+           (csv_data.get('line_crossing_events') is None or len(csv_data['line_crossing_events']) == 0):
+            st.warning("⚠️ No se encontraron eventos de zonas ni cruces de líneas")
+            st.info("💡 Verifica que el análisis de zonas esté habilitado y configurado correctamente")
     else:
-        st.info("Ejecuta un análisis de video con zonas habilitadas para ver los eventos")
+        st.info("📊 Ejecuta un análisis de video con zonas habilitadas para ver los eventos")
+        st.markdown("""
+        **Para ver eventos:**
+        1. Habilita "Análisis de zonas" en el panel lateral
+        2. Selecciona una configuración de zonas
+        3. Ejecuta el análisis de video
+        """)
 
 with tab4:
     st.header("📈 Gráficos y Visualizaciones")
@@ -628,6 +944,113 @@ with tab4:
                 st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Ejecuta un análisis de video para ver los gráficos")
+
+with tab5:
+    st.header("🖼️ Configuración de Zonas")
+    
+    if enable_zones and zones_config:
+        config_path = Path(zones_config)
+        
+        # Mostrar imagen grande de la configuración
+        visual_image_path = config_path.parent / "zonas_visual.png"
+        if visual_image_path.exists():
+            st.subheader(f"Vista de Configuración: {config_path.parent.name}")
+            
+            # Mostrar imagen en tamaño completo
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                st.image(
+                    str(visual_image_path), 
+                    caption="Zonas configuradas para análisis",
+                    use_container_width=True
+                )
+            
+            with col2:
+                # Información detallada de la configuración
+                try:
+                    import json
+                    with open(zones_config, 'r') as f:
+                        zone_data = json.load(f)
+                    
+                    st.subheader("📊 Resumen de Configuración")
+                    
+                    lines_count = len(zone_data.get('lines', []))
+                    polygons_count = len(zone_data.get('polygons', []))
+                    
+                    st.metric("Líneas", lines_count)
+                    st.metric("Polígonos", polygons_count)
+                    
+                    # Detalles de líneas
+                    if lines_count > 0:
+                        st.subheader("📏 Líneas Configuradas")
+                        for i, line in enumerate(zone_data.get('lines', []), 1):
+                            line_name = line.get('name', f'Línea {i}')
+                            line_id = line.get('id', f'line_{i}')
+                            coords = line.get('coordinates', [])
+                            
+                            with st.expander(f"🔸 {line_name}"):
+                                st.write(f"**ID:** {line_id}")
+                                st.write(f"**Nombre:** {line_name}")
+                                if coords and len(coords) >= 2:
+                                    st.write(f"**Punto 1:** ({coords[0][0]}, {coords[0][1]})")
+                                    st.write(f"**Punto 2:** ({coords[1][0]}, {coords[1][1]})")
+                                st.write("**Función:** Detecta cruces de personas/objetos")
+                    
+                    # Detalles de polígonos
+                    if polygons_count > 0:
+                        st.subheader("📐 Polígonos Configurados")
+                        for i, polygon in enumerate(zone_data.get('polygons', []), 1):
+                            poly_name = polygon.get('name', f'Polígono {i}')
+                            poly_id = polygon.get('id', f'polygon_{i}')
+                            coords = polygon.get('coordinates', [])
+                            
+                            with st.expander(f"🔹 {poly_name}"):
+                                st.write(f"**ID:** {poly_id}")
+                                st.write(f"**Nombre:** {poly_name}")
+                                st.write(f"**Puntos:** {len(coords)} vértices")
+                                st.write("**Función:** Detecta entradas y salidas de zona")
+                    
+                    # Mostrar JSON raw si se desea
+                    if st.checkbox("Mostrar configuración JSON"):
+                        st.subheader("📄 Configuración JSON")
+                        st.json(zone_data)
+                        
+                except Exception as e:
+                    st.error(f"Error al leer la configuración: {e}")
+        else:
+            st.warning("No se encontró la imagen de visualización de zonas")
+            st.info("💡 Para generar la imagen de visualización, usa la herramienta de configuración de zonas")
+    
+    elif enable_zones and not zones_config:
+        st.info("Selecciona una configuración de zonas en el panel lateral para ver la vista previa")
+    
+    else:
+        st.info("Habilita el análisis de zonas en el panel lateral para ver las configuraciones disponibles")
+        
+        # Mostrar configuraciones disponibles sin habilitar zonas
+        st.subheader("📂 Configuraciones Disponibles")
+        configs_dir = Path("configs")
+        if configs_dir.exists():
+            available_configs = []
+            for subdir in configs_dir.iterdir():
+                if subdir.is_dir():
+                    json_file = subdir / "zonas.json"
+                    visual_file = subdir / "zonas_visual.png"
+                    if json_file.exists():
+                        available_configs.append((str(json_file), visual_file.exists()))
+            
+            if available_configs:
+                st.write(f"Se encontraron {len(available_configs)} configuraciones:")
+                
+                for config_path, has_visual in available_configs:
+                    config_name = Path(config_path).parent.name
+                    visual_status = "✅ Con imagen" if has_visual else "❌ Sin imagen"
+                    st.write(f"• **{config_name}** - {visual_status}")
+            else:
+                st.write("No se encontraron configuraciones de zonas")
+        else:
+            st.write("El directorio 'configs' no existe")
 
 # Footer
 st.markdown("---")

@@ -1,0 +1,40 @@
+[server]
+# Configuración del servidor Streamlit
+maxUploadSize = 10000
+# Límite de carga de archivos en MB (por defecto es 200MB)
+# Aumentado a 1000MB (1GB) para soportar videos grandes
+
+# [theme]
+# Configuración del tema - comentada para usar el tema del sistema por defecto
+# El tema se puede cambiar dinámicamente desde la interfaz de Streamlit
+# O puedes descomentar y modificar estos valores para forzar un tema específico:
+
+# TEMA CLARO:
+# primaryColor = "#FF6B6B"
+# backgroundColor = "#FFFFFF"
+# secondaryBackgroundColor = "#F0F2F6"
+# textColor = "#262730"
+
+# TEMA OSCURO:
+# primaryColor = "#FF6B6B"
+# backgroundColor = "#0E1117"
+# secondaryBackgroundColor = "#262730"
+# textColor = "#FAFAFA"
+
+[runner]
+# Configuración del runner
+fastReruns = true
+
+# Configuración adicional para análisis de video
+[browser]
+# Configuración del navegador
+gatherUsageStats = false
+
+[global]
+# Configuración global
+developmentMode = false
+
+# Configuración personalizada para FlowSense
+# - maxUploadSize: Límite de carga aumentado a 10GB para videos grandes
+# - Timeout configurable: De 5 minutos (por defecto) hasta 120 minutos
+# - Soporte para interrupción de análisis con resultados parciales

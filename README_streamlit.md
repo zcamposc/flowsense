@@ -190,6 +190,28 @@ Para mejorar el demo:
 3. Optimiza el rendimiento
 4. Agrega más opciones de configuración
 
+## ⚠️ Limitaciones y Consideraciones
+
+### Tamaño de Archivos
+- **Límite aumentado**: Se ha configurado un límite de 1GB para carga de archivos (por defecto era 200MB)
+- **Configuración**: El límite se puede ajustar en `.streamlit/config.toml`
+- **Alternativa**: Para archivos más grandes, usa el CLI directamente desde la terminal
+
+### Configuración de Confianza
+- **Por defecto**: Usa la configuración por defecto de YOLO (recomendado)
+- **Personalizado**: Opción para establecer umbral personalizado si es necesario
+- **Consistencia**: Ahora coincide con el comportamiento del CLI
+
+### Visualización
+- **Procesamiento en tiempo real**: Opcional, puede ralentizar el análisis
+- **Video guardado**: Opción para guardar o no el video procesado
+- **Rendimiento**: Deshabilitar visualización mejora la velocidad
+
+### Rendimiento
+- **Memoria**: Videos muy largos pueden requerir mucha RAM
+- **Procesamiento**: El análisis puede ser lento para videos grandes
+- **Optimización**: Considera usar el CLI para análisis en lotes
+
 ## 📄 Licencia
 
 Este demo es parte del proyecto FlowSense y sigue la misma licencia.
