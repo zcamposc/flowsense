@@ -387,7 +387,7 @@ with tab1:
             st.metric("Tipo", uploaded_file.type)
         
         # Botón para ejecutar análisis
-        if st.button("🚀 Ejecutar Análisis", type="primary"):
+        if st.button("🚀 Ejecutar Análisis con video de prueba", type="primary"):
             with st.spinner("Ejecutando análisis de video..."):
                 # Configuración del análisis
                 config = {
