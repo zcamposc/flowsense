@@ -30,6 +30,8 @@ import subprocess
 import sys
 from typing import Dict, List, Optional, Tuple, Any
 import logging
+from ultralytics import YOLO
+
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -44,11 +46,13 @@ st.set_page_config(
 )
 
 # Título principal
-st.title("🎥 FlowSense - Análisis de Video con YOLO")
-st.markdown("**Demo interactivo para análisis de video con detección de objetos, tracking y análisis de zonas**")
+st.title("🎥 FlowSense - Inteligencia que entiende el flujo de tu cliente")
+st.markdown("**Demo interactivo para análisis de video con detección de personas, tracking y análisis de zonas**")
 
 # Sidebar para configuración
 st.sidebar.header("⚙️ Configuración")
+st.sidebar.markdown("**Clase detectada:** Personas")
+st.sidebar.markdown("**Lugar:** Punto de venta de motos")
 
 def run_video_analysis(video_file: Any, model_path: str, config: Dict[str, Any]) -> Tuple[bool, str, str]:
     """
@@ -86,12 +90,31 @@ def run_video_analysis(video_file: Any, model_path: str, config: Dict[str, Any])
         
         # Construir comando
         cmd = [
-            sys.executable, cli_path, "process",
+            sys.executable, cli_path, ##"process",
             "--video-path", tmp_video_path,
             "--model-path", model_path,
-            "--save-video", "true",
-            "--show", "false"
+            "--save-video", ##"true",
+            "--show"##, "false"
         ]
+            
+            
+            
+        # cmd = [
+        #         sys.executable, cli_path, ## "process",
+        #         "--video-path", tmp_video_path,
+        #         "--model-path", model_path,
+        # ]
+
+        # # Flags booleanos (sin pasar "true"/"false")
+        # if config.get("save_video", True):
+        #     cmd.append("--save-video")
+        # else:
+        #     cmd.append("--no-save-video")
+
+        # if config.get("show", True):
+        #     cmd.append("--show")
+        # else:
+        #     cmd.append("--no-show")
         
         # Agregar parámetros opcionales
         if config.get('classes'):
@@ -104,7 +127,9 @@ def run_video_analysis(video_file: Any, model_path: str, config: Dict[str, Any])
             cmd.append("--enable-stats")
         
         if config.get('enable_zones') and config.get('zones_config'):
-            cmd.extend(["--enable-zones", "true", "--zones-config", config['zones_config']])
+            ##cmd.extend(["--enable-zones", "true", "--zones-config", config['zones_config']])
+            cmd.append("--enable-zones")
+            cmd.extend(["--zones-config", config['zones_config']])
         
         logger.info(f"Ejecutando comando: {' '.join(cmd)}")
         
@@ -319,8 +344,8 @@ enable_zones = st.sidebar.checkbox(
 zones_config = None
 if enable_zones:
     # Mostrar archivos de configuración disponibles
-    configs_dir = "configs"
-    available_configs = []
+    configs_dir = Path("configs")
+    available_configs = [str(p) for p in configs_dir.rglob("*.json")]
     if os.path.exists(configs_dir):
         for file in os.listdir(configs_dir):
             if file.endswith('.json'):
@@ -508,14 +533,27 @@ with tab3:
             with col1:
                 st.metric("Total Cruces", len(df_lines))
             with col2:
-                st.metric("Izq → Der", len(df_lines[df_lines['direction'] == 'left_to_right']))
+                st.metric("Salidas: Izq → Der", len(df_lines[df_lines['direction'] == 'left_to_right']))
             with col3:
-                st.metric("Der → Izq", len(df_lines[df_lines['direction'] == 'right_to_left']))
+                st.metric("Entradas: Der → Izq", len(df_lines[df_lines['direction'] == 'right_to_left']))
             
             # Gráfico de cruces por dirección
-            direction_counts = df_lines['direction'].value_counts()
-            fig = px.pie(values=direction_counts.values, names=direction_counts.index,
-                        title='Distribución de Cruces por Dirección')
+            # direction_counts = df_lines['direction'].value_counts()
+            # fig = px.pie(values=direction_counts.values, names=direction_counts.index,
+            #             title='Distribución de Cruces por Dirección')
+            # st.plotly_chart(fig, use_container_width=True)
+            direction_counts = df_lines['direction'].value_counts().reset_index()
+            direction_counts.columns = ["direction", "count"]
+
+            fig = px.bar(
+                direction_counts,
+                x="direction",
+                y="count",
+                orientation="v",
+                title="Distribución de Cruces por Dirección",
+                text="count"
+            )
+            fig.update_layout(yaxis_title="Dirección", xaxis_title="Cantidad")
             st.plotly_chart(fig, use_container_width=True)
             
             # Tabla de cruces
@@ -547,8 +585,12 @@ with tab4:
             class_counts = df_detections['class_name'].value_counts()
             fig = px.bar(x=class_counts.index, y=class_counts.values,
                         title='Número de Detecciones por Clase')
-            fig.update_xaxis(title='Clase')
-            fig.update_yaxis(title='Número de Detecciones')
+            ## fig.update_xaxis(title='Clase')
+            ##fig.update_yaxis(title='Número de Detecciones')
+            fig.update_layout(
+            xaxis_title="Clase",
+            yaxis_title="Número de Detecciones"
+            ) 
             st.plotly_chart(fig, use_container_width=True)
         
         # Gráfico de trayectorias (si hay datos de posición)
