@@ -1,0 +1,214 @@
+/* Tema oscuro mejorado y completo */
+.stApp {
+    background-color: #0E1117 !important;
+    color: #FAFAFA !important;
+}
+
+/* Sidebar */
+.stSidebar {
+    background-color: #262730 !important;
+    border-right: 1px solid #3E4248 !important;
+}
+
+.stSidebar .stSelectbox > div > div {
+    background-color: #3E4248 !important;
+    color: #FAFAFA !important;
+    border: 1px solid #4B5563 !important;
+}
+
+.stSidebar .stSelectbox > div > div:hover {
+    border-color: #FF6B6B !important;
+}
+
+/* Botones */
+.stButton > button {
+    background-color: #FF6B6B !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    transition: all 0.3s ease !important;
+}
+
+.stButton > button:hover {
+    background-color: #FF5252 !important;
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3) !important;
+}
+
+.stButton > button[data-testid="baseButton-secondary"] {
+    background-color: #6C757D !important;
+    color: #FFFFFF !important;
+}
+
+.stButton > button[data-testid="baseButton-secondary"]:hover {
+    background-color: #5A6268 !important;
+}
+
+/* Inputs */
+.stTextInput > div > div > input {
+    background-color: #3E4248 !important;
+    color: #FAFAFA !important;
+    border: 1px solid #4B5563 !important;
+    border-radius: 6px !important;
+}
+
+.stTextInput > div > div > input:focus {
+    border-color: #FF6B6B !important;
+    box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.2) !important;
+}
+
+/* Sliders */
+.stSlider > div > div > div {
+    color: #FAFAFA !important;
+}
+
+.stSlider .stSlider-track {
+    background-color: #4B5563 !important;
+}
+
+.stSlider .stSlider-thumb {
+    background-color: #FF6B6B !important;
+}
+
+/* Checkboxes y radios */
+.stCheckbox > label {
+    color: #FAFAFA !important;
+}
+
+.stCheckbox input[type="checkbox"]:checked + div {
+    background-color: #FF6B6B !important;
+}
+
+.stRadio > label {
+    color: #FAFAFA !important;
+}
+
+/* Selectboxes */
+.stSelectbox > label {
+    color: #FAFAFA !important;
+    font-weight: 500 !important;
+}
+
+/* Métricas */
+.metric-container {
+    background-color: #262730 !important;
+    border: 1px solid #3E4248 !important;
+    border-radius: 8px !important;
+    padding: 1rem !important;
+}
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    background-color: #262730 !important;
+    border-bottom: 1px solid #3E4248 !important;
+}
+
+.stTabs [data-baseweb="tab"] {
+    color: #9CA3AF !important;
+    background-color: transparent !important;
+    border-radius: 6px 6px 0 0 !important;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    background-color: #3E4248 !important;
+    color: #D1D5DB !important;
+}
+
+.stTabs [aria-selected="true"] {
+    background-color: #0E1117 !important;
+    color: #FF6B6B !important;
+    border-bottom: 2px solid #FF6B6B !important;
+}
+
+/* Dataframes */
+.stDataFrame {
+    border: 1px solid #3E4248 !important;
+    border-radius: 6px !important;
+}
+
+.stDataFrame th {
+    background-color: #262730 !important;
+    color: #D1D5DB !important;
+    border-bottom: 1px solid #3E4248 !important;
+}
+
+.stDataFrame td {
+    color: #FAFAFA !important;
+}
+
+/* Alertas y mensajes */
+.stSuccess {
+    background-color: #064E3B !important;
+    color: #A7F3D0 !important;
+    border: 1px solid #065F46 !important;
+}
+
+.stInfo {
+    background-color: #0F172A !important;
+    color: #93C5FD !important;
+    border: 1px solid #1E293B !important;
+}
+
+.stWarning {
+    background-color: #451A03 !important;
+    color: #FCD34D !important;
+    border: 1px solid #78350F !important;
+}
+
+.stError {
+    background-color: #7F1D1D !important;
+    color: #FCA5A5 !important;
+    border: 1px solid #991B1B !important;
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    color: #F9FAFB !important;
+}
+
+/* Progress bar */
+.stProgress > div > div {
+    background-color: #FF6B6B !important;
+}
+
+/* File uploader */
+.stFileUploader > div {
+    border: 2px dashed #4B5563 !important;
+    border-radius: 8px !important;
+    background-color: #262730 !important;
+}
+
+.stFileUploader > div:hover {
+    border-color: #FF6B6B !important;
+    background-color: #3E4248 !important;
+}
+
+/* Expander */
+.streamlit-expanderHeader {
+    background-color: #262730 !important;
+    color: #FAFAFA !important;
+    border: 1px solid #3E4248 !important;
+}
+
+.streamlit-expanderContent {
+    background-color: #0E1117 !important;
+    border: 1px solid #3E4248 !important;
+    border-top: none !important;
+}
+
+/* Multiselect */
+.stMultiSelect > div > div {
+    background-color: #3E4248 !important;
+    border: 1px solid #4B5563 !important;
+}
+
+.stMultiSelect span {
+    background-color: #7C2D12 !important;
+    color: #FED7AA !important;
+    border: 1px solid #9A3412 !important;
+}
+
+/* Spinner */
+.stSpinner > div {
+    border-color: #FF6B6B !important;
+}

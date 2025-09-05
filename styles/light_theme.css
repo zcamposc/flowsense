@@ -1,0 +1,480 @@
+/* TEMA CLARO ULTRA-RADICAL - SOBRESCRIBIR TODO */
+
+/* Resetear TODOS los colores de texto a oscuro */
+* {
+    color: #262730 !important;
+}
+
+.stApp {
+    background-color: #FFFFFF !important;
+    color: #262730 !important;
+}
+
+.stApp * {
+    color: #262730 !important;
+}
+
+/* Contenedor principal */
+.main {
+    background-color: #FFFFFF !important;
+    color: #262730 !important;
+}
+
+.main * {
+    color: #262730 !important;
+}
+
+/* Forzar en TODOS los elementos posibles */
+div, p, span, label, h1, h2, h3, h4, h5, h6, li, ul, ol {
+    color: #262730 !important;
+}
+
+/* Más selectores específicos para texto */
+div[data-testid="stMarkdownContainer"] {
+    color: #262730 !important;
+}
+
+.stMetric {
+    color: #262730 !important;
+}
+
+.stMetric label {
+    color: #6C757D !important;
+}
+
+.stMetric [data-testid="metric-value"] {
+    color: #262730 !important;
+}
+
+p, div, span, label {
+    color: #262730 !important;
+}
+
+/* Sidebar */
+.stSidebar {
+    background-color: #F8F9FA !important;
+    border-right: 1px solid #E9ECEF !important;
+}
+
+.stSidebar * {
+    color: #262730 !important;
+}
+
+.stSidebar .stSelectbox > div > div {
+    background-color: #FFFFFF !important;
+    color: #262730 !important;
+    border: 1px solid #DEE2E6 !important;
+}
+
+.stSidebar .stSelectbox > div > div:hover {
+    border-color: #0066CC !important;
+}
+
+/* Dropdown options en sidebar */
+.stSidebar .stSelectbox ul {
+    background-color: #FFFFFF !important;
+    border: 1px solid #DEE2E6 !important;
+}
+
+.stSidebar .stSelectbox ul li {
+    color: #262730 !important;
+    background-color: #FFFFFF !important;
+}
+
+.stSidebar .stSelectbox ul li:hover {
+    background-color: #F8F9FA !important;
+    color: #0066CC !important;
+}
+
+/* Sidebar - selectores más específicos */
+.stSidebar [data-baseweb="select"] [data-baseweb="popover"] li:hover {
+    background-color: #F8F9FA !important;
+    color: #0066CC !important;
+}
+
+/* Botones - EXCEPCIÓN al color de texto universal */
+.stButton > button {
+    background-color: #0066CC !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    transition: all 0.3s ease !important;
+}
+
+.stButton > button * {
+    color: #FFFFFF !important;
+}
+
+.stButton > button:hover {
+    background-color: #0052A3 !important;
+    box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3) !important;
+}
+
+.stButton > button[data-testid="baseButton-secondary"] {
+    background-color: #6C757D !important;
+    color: #FFFFFF !important;
+}
+
+.stButton > button[data-testid="baseButton-secondary"]:hover {
+    background-color: #5A6268 !important;
+}
+
+/* Inputs */
+.stTextInput > div > div > input {
+    background-color: #FFFFFF !important;
+    color: #262730 !important;
+    border: 1px solid #DEE2E6 !important;
+    border-radius: 6px !important;
+}
+
+.stTextInput > div > div > input:focus {
+    border-color: #0066CC !important;
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2) !important;
+}
+
+/* Sliders */
+.stSlider > div > div > div {
+    color: #262730 !important;
+}
+
+.stSlider .stSlider-track {
+    background-color: #DEE2E6 !important;
+}
+
+.stSlider .stSlider-thumb {
+    background-color: #0066CC !important;
+}
+
+/* Checkboxes y radios */
+.stCheckbox > label {
+    color: #262730 !important;
+}
+
+.stCheckbox input[type="checkbox"]:checked + div {
+    background-color: #0066CC !important;
+}
+
+.stRadio > label {
+    color: #262730 !important;
+}
+
+/* Selectboxes */
+.stSelectbox > label {
+    color: #262730 !important;
+    font-weight: 500 !important;
+}
+
+/* Selectboxes del área principal */
+.main .stSelectbox > div > div {
+    background-color: #FFFFFF !important;
+    color: #262730 !important;
+    border: 1px solid #DEE2E6 !important;
+}
+
+.main .stSelectbox ul {
+    background-color: #FFFFFF !important;
+    border: 1px solid #DEE2E6 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.main .stSelectbox ul li {
+    color: #262730 !important;
+    background-color: #FFFFFF !important;
+}
+
+.main .stSelectbox ul li:hover {
+    background-color: #F8F9FA !important;
+    color: #0066CC !important;
+}
+
+.main .stSelectbox ul li[aria-selected="true"] {
+    background-color: #E7F3FF !important;
+    color: #0066CC !important;
+}
+
+/* Placeholder de inputs */
+.stTextInput input::placeholder {
+    color: #6C757D !important;
+}
+
+.stTextInput div[data-baseweb="input"] span {
+    color: #6C757D !important;
+}
+
+/* Métricas */
+.metric-container {
+    background-color: #F8F9FA !important;
+    border: 1px solid #E9ECEF !important;
+    border-radius: 8px !important;
+    padding: 1rem !important;
+}
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    background-color: #F8F9FA !important;
+    border-bottom: 1px solid #DEE2E6 !important;
+}
+
+.stTabs [data-baseweb="tab"] {
+    color: #6C757D !important;
+    background-color: transparent !important;
+    border-radius: 6px 6px 0 0 !important;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    background-color: #E9ECEF !important;
+    color: #495057 !important;
+}
+
+.stTabs [aria-selected="true"] {
+    background-color: #FFFFFF !important;
+    color: #0066CC !important;
+    border-bottom: 2px solid #0066CC !important;
+}
+
+/* Dataframes */
+.stDataFrame {
+    border: 1px solid #DEE2E6 !important;
+    border-radius: 6px !important;
+}
+
+.stDataFrame th {
+    background-color: #F8F9FA !important;
+    color: #495057 !important;
+    border-bottom: 1px solid #DEE2E6 !important;
+}
+
+.stDataFrame td {
+    color: #262730 !important;
+}
+
+/* Alertas y mensajes - EXCEPCIONES al color de texto universal */
+.stSuccess {
+    background-color: #D1E7DD !important;
+    color: #0F5132 !important;
+    border: 1px solid #BADBCC !important;
+}
+
+.stSuccess * {
+    color: #0F5132 !important;
+}
+
+.stInfo {
+    background-color: #D1ECF1 !important;
+    color: #055160 !important;
+    border: 1px solid #B6D7FF !important;
+}
+
+.stInfo * {
+    color: #055160 !important;
+}
+
+.stWarning {
+    background-color: #FFF3CD !important;
+    color: #664D03 !important;
+    border: 1px solid #FFDA6A !important;
+}
+
+.stWarning * {
+    color: #664D03 !important;
+}
+
+.stError {
+    background-color: #F8D7DA !important;
+    color: #721C24 !important;
+    border: 1px solid #F1AEB5 !important;
+}
+
+.stError * {
+    color: #721C24 !important;
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    color: #212529 !important;
+}
+
+/* Selectores más específicos de Streamlit */
+.main .block-container p,
+.main .block-container div,
+.main .block-container span,
+.main .block-container label {
+    color: #262730 !important;
+}
+
+/* Títulos y subtítulos */
+.main .block-container h1,
+.main .block-container h2,
+.main .block-container h3 {
+    color: #212529 !important;
+}
+
+/* Texto en tabs */
+.stTabs div[role="tabpanel"] {
+    color: #262730 !important;
+}
+
+.stTabs div[role="tabpanel"] * {
+    color: #262730 !important;
+}
+
+/* Forzar color en elementos de Plotly */
+.js-plotly-plot {
+    color: #262730 !important;
+}
+
+/* Progress bar */
+.stProgress > div > div {
+    background-color: #0066CC !important;
+}
+
+/* File uploader - SOLUCIÓN RADICAL */
+.stFileUploader,
+.stFileUploader *,
+[data-testid="stFileUploader"],
+[data-testid="stFileUploader"] *,
+div[data-testid="stFileUploaderDropzone"],
+div[data-testid="stFileUploaderDropzone"] *,
+[data-testid="stFileUploaderDropzoneInstructions"],
+[data-testid="stFileUploaderDropzoneInstructions"] * {
+    color: #262730 !important;
+    background-color: #F8F9FA !important;
+}
+
+/* Bordes del file uploader */
+.stFileUploader > div,
+[data-testid="stFileUploader"] > div {
+    border: 2px dashed #DEE2E6 !important;
+    border-radius: 8px !important;
+}
+
+/* Botón de colapsar sidebar */
+button[title="Close sidebar"] {
+    color: #262730 !important;
+    background-color: #F8F9FA !important;
+}
+
+button[title="Open sidebar"] {
+    color: #262730 !important;
+    background-color: #F8F9FA !important;
+}
+
+.css-1rs6os.edgvbvh3 {
+    color: #262730 !important;
+}
+
+/* Expander */
+.streamlit-expanderHeader {
+    background-color: #F8F9FA !important;
+    color: #262730 !important;
+    border: 1px solid #DEE2E6 !important;
+}
+
+.streamlit-expanderContent {
+    background-color: #FFFFFF !important;
+    border: 1px solid #DEE2E6 !important;
+    border-top: none !important;
+}
+
+/* Multiselect */
+.stMultiSelect > div > div {
+    background-color: #FFFFFF !important;
+    border: 1px solid #DEE2E6 !important;
+}
+
+.stMultiSelect span {
+    background-color: #E7F3FF !important;
+    color: #0066CC !important;
+    border: 1px solid #B6D7FF !important;
+}
+
+/* Selectores adicionales para elementos específicos de Streamlit */
+div[data-baseweb="select"] {
+    background-color: #FFFFFF !important;
+    color: #262730 !important;
+}
+
+div[data-baseweb="select"] * {
+    color: #262730 !important;
+}
+
+div[data-baseweb="popover"] {
+    background-color: #FFFFFF !important;
+}
+
+div[data-baseweb="popover"] ul {
+    background-color: #FFFFFF !important;
+}
+
+div[data-baseweb="popover"] li {
+    color: #262730 !important;
+    background-color: #FFFFFF !important;
+}
+
+div[data-baseweb="popover"] li:hover {
+    background-color: #F8F9FA !important;
+    color: #0066CC !important;
+}
+
+/* Selectores más específicos para BaseWeb */
+[data-baseweb="select"] [data-baseweb="popover"] {
+    background-color: #FFFFFF !important;
+}
+
+[data-baseweb="select"] [data-baseweb="popover"] ul {
+    background-color: #FFFFFF !important;
+}
+
+[data-baseweb="select"] [data-baseweb="popover"] li {
+    color: #262730 !important;
+    background-color: #FFFFFF !important;
+}
+
+[data-baseweb="select"] [data-baseweb="popover"] li:hover {
+    background-color: #F8F9FA !important;
+    color: #0066CC !important;
+}
+
+/* Forzar colores en elementos hover de selectbox */
+.stSelectbox div[role="listbox"] li:hover {
+    background-color: #F8F9FA !important;
+    color: #0066CC !important;
+}
+
+.stSelectbox div[role="option"]:hover {
+    background-color: #F8F9FA !important;
+    color: #0066CC !important;
+}
+
+/* Botones de control de Streamlit */
+.css-1rs6os {
+    color: #262730 !important;
+}
+
+/* Labels y help text */
+.stTextInput > label {
+    color: #262730 !important;
+}
+
+.stSelectbox > label {
+    color: #262730 !important;
+}
+
+.stCheckbox > label {
+    color: #262730 !important;
+}
+
+/* Help text */
+.stTextInput div[data-testid="InputInstructions"] {
+    color: #6C757D !important;
+}
+
+.stSelectbox div[data-testid="InputInstructions"] {
+    color: #6C757D !important;
+}
+
+/* Spinner */
+.stSpinner > div {
+    border-color: #0066CC !important;
+}

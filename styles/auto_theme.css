@@ -1,0 +1,23 @@
+/* Estilos generales para tema automático */
+.stButton > button {
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    transition: all 0.3s ease !important;
+}
+
+.stTextInput > div > div > input {
+    border-radius: 6px !important;
+}
+
+.stFileUploader > div {
+    border-radius: 8px !important;
+}
+
+.stDataFrame {
+    border-radius: 6px !important;
+}
+
+.metric-container {
+    border-radius: 8px !important;
+    padding: 1rem !important;
+}

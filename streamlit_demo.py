@@ -32,6 +32,9 @@ from typing import Dict, List, Optional, Tuple, Any
 import logging
 from ultralytics import YOLO
 
+# Importar el gestor de temas
+from styles import ThemeManager
+
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -46,8 +49,6 @@ st.set_page_config(
 )
 
 # Configurar límite de carga de archivos (en MB)
-# Por defecto Streamlit tiene límite de 200MB
-# Puedes aumentarlo con esta configuración
 MAX_FILE_SIZE_MB = 1000  # Aumentar a 1GB
 st.write(f"Límite máximo de archivo: {MAX_FILE_SIZE_MB} MB")
 
@@ -58,111 +59,35 @@ st.markdown("**Demo interactivo para análisis de video con detección de person
 # Sidebar para configuración
 st.sidebar.header("⚙️ Configuración")
 
+# Inicializar el gestor de temas
+theme_manager = ThemeManager()
+
 # Selector de tema
 st.sidebar.subheader("🎨 Tema")
+theme_options = ["Oscuro", "Automático (sistema)", "Claro"]
+
 theme_option = st.sidebar.selectbox(
     "Seleccionar tema",
-    ["Automático (sistema)", "Claro", "Oscuro"],
-    help="Cambia el tema de la interfaz. 'Automático' usa la configuración de tu sistema."
+    theme_options,
+    help="Cambia el tema de la interfaz. 'Oscuro' es el recomendado para mejor visibilidad."
 )
 
-# Aplicar tema dinámicamente
-def apply_theme(theme_choice):
-    """Aplica el tema seleccionado mediante CSS personalizado"""
-    if theme_choice == "Claro":
-        st.markdown("""
-        <style>
-        /* Tema claro mejorado */
-        .stApp {
-            background-color: #FFFFFF !important;
-            color: #262730 !important;
-        }
-        .stSidebar {
-            background-color: #F0F2F6 !important;
-        }
-        .stSidebar .stSelectbox > div > div {
-            background-color: #FFFFFF !important;
-            color: #262730 !important;
-        }
-        .stButton > button {
-            background-color: #FF6B6B !important;
-            color: #FFFFFF !important;
-            border: none !important;
-        }
-        .stButton > button[data-testid="baseButton-secondary"] {
-            background-color: #6C757D !important;
-            color: #FFFFFF !important;
-        }
-        .stTextInput > div > div > input {
-            background-color: #FFFFFF !important;
-            color: #262730 !important;
-            border: 1px solid #D1D5DB !important;
-        }
-        .stSlider > div > div > div {
-            color: #262730 !important;
-        }
-        .stCheckbox > label {
-            color: #262730 !important;
-        }
-        .stRadio > label {
-            color: #262730 !important;
-        }
-        .stSelectbox > label {
-            color: #262730 !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-    elif theme_choice == "Oscuro":
-        st.markdown("""
-        <style>
-        /* Tema oscuro mejorado */
-        .stApp {
-            background-color: #0E1117 !important;
-            color: #FAFAFA !important;
-        }
-        .stSidebar {
-            background-color: #262730 !important;
-        }
-        .stSidebar .stSelectbox > div > div {
-            background-color: #262730 !important;
-            color: #FAFAFA !important;
-        }
-        .stButton > button {
-            background-color: #FF6B6B !important;
-            color: #FFFFFF !important;
-            border: none !important;
-        }
-        .stButton > button[data-testid="baseButton-secondary"] {
-            background-color: #6C757D !important;
-            color: #FFFFFF !important;
-        }
-        .stTextInput > div > div > input {
-            background-color: #262730 !important;
-            color: #FAFAFA !important;
-            border: 1px solid #4B5563 !important;
-        }
-        .stSlider > div > div > div {
-            color: #FAFAFA !important;
-        }
-        .stCheckbox > label {
-            color: #FAFAFA !important;
-        }
-        .stRadio > label {
-            color: #FAFAFA !important;
-        }
-        .stSelectbox > label {
-            color: #FAFAFA !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
+# Aplicar tema usando el gestor
 if theme_option != "Automático (sistema)":
-    apply_theme(theme_option)
-    st.sidebar.info(f"💡 Tema aplicado: {theme_option}")
+    success = theme_manager.apply_theme(theme_option)
+    if success:
+        theme_manager.show_theme_status(theme_option)
+    else:
+        st.sidebar.error(f"❌ Error al cargar el tema: {theme_option}")
+else:
+    # Aplicar estilos básicos para tema automático
+    theme_manager.apply_theme(theme_option)
+    theme_manager.show_theme_status(theme_option)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Clase detectada:** Personas")
 st.sidebar.markdown("**Lugar:** Punto de venta de motos")
+
 
 def run_video_analysis(video_file: Any, model_path: str, config: Dict[str, Any]) -> Tuple[bool, str, str]:
     """
@@ -234,7 +159,6 @@ def run_video_analysis(video_file: Any, model_path: str, config: Dict[str, Any])
             cmd.append("--enable-stats")
         
         if config.get('enable_zones') and config.get('zones_config'):
-            ##cmd.extend(["--enable-zones", "true", "--zones-config", config['zones_config']])
             cmd.append("--enable-zones")
             cmd.extend(["--zones-config", config['zones_config']])
         
@@ -289,6 +213,7 @@ def run_video_analysis(video_file: Any, model_path: str, config: Dict[str, Any])
             except OSError as e:
                 logger.warning(f"No se pudo eliminar archivo temporal: {e}")
 
+
 def load_csv_data(output_dir: str) -> Dict[str, Optional[pd.DataFrame]]:
     """
     Carga los datos CSV generados por el análisis de video.
@@ -340,6 +265,7 @@ def load_csv_data(output_dir: str) -> Dict[str, Optional[pd.DataFrame]]:
     
     return data
 
+
 def display_video(video_path: str) -> None:
     """
     Muestra el video procesado en la interfaz de Streamlit.
@@ -371,6 +297,7 @@ def display_video(video_path: str) -> None:
     except Exception as e:
         st.error(f"Error mostrando video: {e}")
         logger.error(f"Error mostrando video: {e}")
+
 
 def validate_environment() -> bool:
     """
@@ -418,6 +345,7 @@ def validate_environment() -> bool:
         return False
     
     return True
+
 
 # Validar entorno
 if not validate_environment():
@@ -540,7 +468,7 @@ if enable_zones:
                 st.sidebar.image(
                     str(visual_image_path), 
                     caption=f"Configuración: {config_path.parent.name}",
-                    use_container_width=True
+                    use_column_width=True
                 )
                 
                 # Mostrar información adicional de la configuración
@@ -763,11 +691,11 @@ with tab2:
             detections_per_frame = df_detections.groupby('frame_number').size().reset_index(name='count')
             fig = px.line(detections_per_frame, x='frame_number', y='count', 
                          title='Detecciones por Frame')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             # Tabla de detecciones
             st.subheader("Detecciones Recientes")
-            st.dataframe(df_detections.tail(10), use_container_width=True)
+            st.dataframe(df_detections.tail(10), width='stretch')
         
         # Estadísticas por minuto
         if csv_data.get('minute_statistics') is not None:
@@ -789,7 +717,7 @@ with tab2:
             fig.add_trace(go.Scatter(x=df_minute['minute_timestamp'], y=df_minute['unique_tracks'], 
                                    mode='lines+markers', name='Tracks Únicos'))
             fig.update_layout(title='Estadísticas por Minuto', xaxis_title='Tiempo', yaxis_title='Cantidad')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
     else:
         st.info("Ejecuta un análisis de video para ver las estadísticas")
 
@@ -816,11 +744,11 @@ with tab3:
             zone_events = df_zones.groupby(['zone_name', 'event_type']).size().reset_index(name='count')
             fig = px.bar(zone_events, x='zone_name', y='count', color='event_type',
                         title='Eventos por Zona', barmode='group')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             # Tabla de eventos
             st.subheader("Eventos de Zona")
-            st.dataframe(df_zones, use_container_width=True)
+            st.dataframe(df_zones, width='stretch')
         elif csv_data.get('zone_events') is not None:
             st.info("📍 No se detectaron eventos de zona (entradas/salidas de polígonos)")
             st.info("💡 Tu configuración actual solo tiene líneas. Para eventos de zona, agrega polígonos a la configuración.")
@@ -839,10 +767,6 @@ with tab3:
                 st.metric("🔴 Entradas (Der → Izq)", len(df_lines[df_lines['direction'] == 'right_to_left']))
             
             # Gráfico de cruces por dirección
-            # direction_counts = df_lines['direction'].value_counts()
-            # fig = px.pie(values=direction_counts.values, names=direction_counts.index,
-            #             title='Distribución de Cruces por Dirección')
-            # st.plotly_chart(fig, use_container_width=True)
             direction_counts = df_lines['direction'].value_counts().reset_index()
             direction_counts.columns = ["direction", "count"]
 
@@ -855,11 +779,11 @@ with tab3:
                 text="count"
             )
             fig.update_layout(yaxis_title="Dirección", xaxis_title="Cantidad")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             # Tabla de cruces
             st.subheader("📋 Detalles de Cruces")
-            st.dataframe(df_lines, use_container_width=True)
+            st.dataframe(df_lines, width='stretch')
         elif csv_data.get('line_crossing_events') is not None:
             st.info("🔄 No se detectaron cruces de líneas en este análisis")
             st.info("💡 Verifica que los objetos crucen las líneas configuradas")
@@ -891,7 +815,7 @@ with tab4:
             
             fig = px.histogram(df_detections, x='confidence', nbins=20, 
                              title='Distribución de Confianza de Detecciones')
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         
         # Gráfico de clases detectadas
         if csv_data.get('frame_detections') is not None:
@@ -901,13 +825,11 @@ with tab4:
             class_counts = df_detections['class_name'].value_counts()
             fig = px.bar(x=class_counts.index, y=class_counts.values,
                         title='Número de Detecciones por Clase')
-            ## fig.update_xaxis(title='Clase')
-            ##fig.update_yaxis(title='Número de Detecciones')
             fig.update_layout(
-            xaxis_title="Clase",
-            yaxis_title="Número de Detecciones"
+                xaxis_title="Clase",
+                yaxis_title="Número de Detecciones"
             ) 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         
         # Gráfico de trayectorias (si hay datos de posición)
         if csv_data.get('frame_detections') is not None:
@@ -941,7 +863,7 @@ with tab4:
                     yaxis_title='Posición Y',
                     yaxis=dict(scaleanchor="x", scaleratio=1)
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
     else:
         st.info("Ejecuta un análisis de video para ver los gráficos")
 
@@ -963,7 +885,7 @@ with tab5:
                 st.image(
                     str(visual_image_path), 
                     caption="Zonas configuradas para análisis",
-                    use_container_width=True
+                    use_column_width=True
                 )
             
             with col2:

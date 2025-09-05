@@ -1,0 +1,19 @@
+{
+  "lines": [
+    {
+      "id": "line_entrada_principal",
+      "name": "entrada_principal",
+      "coordinates": [
+        [
+          1003,
+          851
+        ],
+        [
+          1666,
+          351
+        ]
+      ]
+    }
+  ],
+  "polygons": []
+}

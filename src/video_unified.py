@@ -260,6 +260,12 @@ def procesar_video_unificado(
         'right_to_left': 0   # Salidas (derecha a izquierda)
     }
     
+    # Contadores de entradas y salidas para zonas (polígonos)
+    zone_counters = {
+        'entries': 0,   # Entradas a zonas
+        'exits': 0      # Salidas de zonas
+    }
+    
     # Contadores de frame
     frame_count = 0
 
@@ -454,7 +460,8 @@ def procesar_video_unificado(
                                     conf=conf,
                                     db_service=db_service, # Pasar el servicio de base de datos
                                     zone_name_mapping=zone_name_mapping, # Pasar el mapeo de nombres
-                                    line_counters=line_counters  # Pasar los contadores
+                                    line_counters=line_counters,  # Pasar los contadores de líneas
+                                    zone_counters=zone_counters   # Pasar los contadores de zonas
                                 )
                 
             # Mostrar estadísticas en tiempo real
@@ -470,6 +477,15 @@ def procesar_video_unificado(
                 cv2.putText(
                     frame, counter_text,
                     (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2
+                )
+            
+            # Mostrar contadores de zonas si están habilitadas
+            if enable_zones and polygons:
+                zone_text = f"Zonas - Entradas: {zone_counters['entries']} | Salidas: {zone_counters['exits']}"
+                y_position = 90 if lines else 60  # Ajustar posición si hay líneas
+                cv2.putText(
+                    frame, zone_text,
+                    (10, y_position), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 255), 2
                 )
 
             # Visualizar zonas si está habilitado
@@ -587,6 +603,13 @@ def procesar_video_unificado(
             print(f"   • 🟢 Entradas (der→izq): {line_counters['right_to_left']}")
             print(f"   • 🔴 Salidas (izq→der): {line_counters['left_to_right']}")
             print(f"   • 📊 Total cruces: {line_counters['left_to_right'] + line_counters['right_to_left']}")
+        
+        # Mostrar contadores finales de zonas
+        if polygons:
+            print(f"\n🔵 CONTADORES FINALES DE ZONAS:")
+            print(f"   • 🔵 Entradas a zonas: {zone_counters['entries']}")
+            print(f"   • 🟡 Salidas de zonas: {zone_counters['exits']}")
+            print(f"   • 📊 Total eventos de zona: {zone_counters['entries'] + zone_counters['exits']}")
     
     print(f"{'='*60}")
 
@@ -609,7 +632,8 @@ def analizar_objeto_con_zonas(
     conf: float = 0.0, # Added conf parameter
     db_service = None,  # Servicio de base de datos
     zone_name_mapping: Dict[str, str] = None, # Mapeo de nombres personalizados
-    line_counters: Dict[str, int] = None  # Contadores de líneas
+    line_counters: Dict[str, int] = None,  # Contadores de líneas
+    zone_counters: Dict[str, int] = None   # Contadores de zonas
 ) -> None:
     """
     Analiza un objeto detectado: posición, trayectoria y eventos de zonas.
@@ -631,8 +655,17 @@ def analizar_objeto_con_zonas(
             # ENTRADA a zona
             if track_id not in ids_en_zona:
                 ids_en_zona[track_id] = set()  # Initialize if not exists
-            ids_en_zona[track_id].add(f"polygon_{i+1}")
-            print(f"[ALERTA] {class_name} ID {track_id} ha entrado en zona de interés.")
+            
+            # Solo contar si es una entrada nueva (no estaba en la zona antes)
+            if f"polygon_{i+1}" not in ids_en_zona[track_id]:
+                ids_en_zona[track_id].add(f"polygon_{i+1}")
+                
+                # INCREMENTAR CONTADOR DE ENTRADAS A ZONAS
+                if zone_counters is not None:
+                    zone_counters['entries'] += 1
+                    print(f"[CONTADOR ZONA] 🔵 ENTRADA #{zone_counters['entries']}: {class_name} ID {track_id} → zona {i+1}")
+                
+                print(f"[ALERTA] {class_name} ID {track_id} ha entrado en zona de interés.")
             
             # Guardar evento usando módulo de persistencia
             if persistence_writer and zones_config:
@@ -699,6 +732,12 @@ def analizar_objeto_con_zonas(
         elif not is_in_zone and track_id in ids_en_zona and f"polygon_{i+1}" in ids_en_zona[track_id]:
             # SALIDA de zona
             ids_en_zona[track_id].discard(f"polygon_{i+1}")
+            
+            # INCREMENTAR CONTADOR DE SALIDAS DE ZONAS
+            if zone_counters is not None:
+                zone_counters['exits'] += 1
+                print(f"[CONTADOR ZONA] 🟡 SALIDA #{zone_counters['exits']}: {class_name} ID {track_id} ← zona {i+1}")
+            
             print(f"[ALERTA] {class_name} ID {track_id} ha salido de zona de interés.")
             
             # Guardar evento usando módulo de persistencia

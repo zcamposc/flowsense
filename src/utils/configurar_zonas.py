@@ -161,34 +161,85 @@ def select_polygon(image_path):
     if img is None:
         raise ValueError(f"No se pudo cargar la imagen: {image_path}")
     
+    # Crear una copia para mostrar información
+    display_img = img.copy()
     points = []
 
     def click_event(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
             points.append((x, y))
-            cv2.circle(img, (x, y), 5, (255, 0, 0), -1)
+            # Redibujar todo
+            display_img[:] = img[:]
+            
+            # Dibujar todos los puntos
+            for i, point in enumerate(points):
+                cv2.circle(display_img, point, 8, (255, 0, 0), -1)
+                cv2.putText(display_img, str(i+1), 
+                           (point[0]+10, point[1]-10), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            
+            # Dibujar líneas entre puntos
             if len(points) > 1:
-                cv2.line(img, points[-2], points[-1], (255, 0, 0), 2)
-            cv2.imshow("Haz clic para el polígono, Enter para terminar", img)
+                for i in range(1, len(points)):
+                    cv2.line(display_img, points[i-1], points[i], (255, 0, 0), 2)
+            
+            # Si hay al menos 3 puntos, dibujar línea de cierre (preview)
+            if len(points) >= 3:
+                cv2.line(display_img, points[-1], points[0], (0, 255, 255), 1)  # Línea amarilla punteada
+            
+            # Mostrar información en la imagen
+            info_text = f"Puntos: {len(points)} - Min: 3 - ENTER para terminar, ESC para cancelar"
+            cv2.putText(display_img, info_text, 
+                       (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            
+            if len(points) >= 3:
+                cv2.putText(display_img, "LISTO! Presiona ENTER", 
+                           (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            
+            cv2.imshow("Configurar Poligono", display_img)
+            
+            print(f"   📍 Punto {len(points)}: ({x}, {y})")
+            if len(points) >= 3:
+                print(f"   ✅ ¡Listo! Tienes {len(points)} puntos. Presiona ENTER para terminar.")
 
-    cv2.imshow("Haz clic para el polígono, Enter para terminar", img)
-    cv2.setMouseCallback("Haz clic para el polígono, Enter para terminar",
-                         click_event)
+    # Mostrar información inicial
+    cv2.putText(display_img, "Haz clic para agregar puntos del poligono", 
+               (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+    cv2.putText(display_img, "Minimo 3 puntos - ENTER terminar - ESC cancelar", 
+               (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+    
+    cv2.imshow("Configurar Poligono", display_img)
+    cv2.setMouseCallback("Configurar Poligono", click_event)
     
     print("🔄 Selecciona puntos para el polígono:")
-    print("   • Haz clic en múltiples puntos")
-    print("   • Presiona ENTER cuando hayas terminado (mínimo 3 puntos)")
+    print("   • Haz clic en múltiples puntos para formar el polígono")
+    print("   • Necesitas mínimo 3 puntos")
+    print("   • Presiona ENTER cuando hayas terminado")
+    print("   • Presiona ESC para cancelar")
+    print()
     
     while True:
-        key = cv2.waitKey(1)
-        if key == 13 and len(points) > 2:  # Enter
+        key = cv2.waitKey(1) & 0xFF
+        if key == 13 and len(points) >= 3:  # Enter
+            print(f"✅ Polígono configurado con {len(points)} puntos")
             break
+        elif key == 13 and len(points) < 3:  # Enter pero pocos puntos
+            print(f"⚠️  Necesitas al menos 3 puntos. Tienes {len(points)}. Sigue haciendo clic.")
         elif key == 27:  # ESC para cancelar
+            print("❌ Polígono cancelado")
             cv2.destroyAllWindows()
             return None
+        elif key == ord('r'):  # R para reiniciar
+            points.clear()
+            display_img[:] = img[:]
+            cv2.putText(display_img, "Haz clic para agregar puntos del poligono", 
+                       (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            cv2.putText(display_img, "Minimo 3 puntos - ENTER terminar - ESC cancelar", 
+                       (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            cv2.imshow("Configurar Poligono", display_img)
+            print("🔄 Polígono reiniciado. Comienza de nuevo.")
     
     cv2.destroyAllWindows()
-    print(f"✅ Polígono configurado con {len(points)} puntos")
     return points
 
 
