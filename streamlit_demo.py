@@ -646,18 +646,47 @@ with tab1:
                 outputs_dir = "outputs"
                 if os.path.exists(outputs_dir):
                     # Buscar el directorio CSV más reciente
-                    dirs = [d for d in os.listdir(outputs_dir) if d.startswith('csv_analysis_')]
-                    if dirs:
-                        latest_dir = max(dirs, key=lambda x: os.path.getctime(os.path.join(outputs_dir, x)))
-                        output_dir = os.path.join(outputs_dir, latest_dir)
+                    csv_dirs = [d for d in os.listdir(outputs_dir) if d.startswith('csv_analysis_')]
+                    if csv_dirs:
+                        latest_csv_dir = max(csv_dirs, key=lambda x: os.path.getctime(os.path.join(outputs_dir, x)))
+                        output_dir = os.path.join(outputs_dir, latest_csv_dir)
                         
-                        # Buscar video de salida
+                        # Extraer timestamp del directorio CSV para buscar el video correspondiente
+                        csv_timestamp = latest_csv_dir.replace('csv_analysis_', '')
+                        
+                        # Buscar video de salida que corresponda al mismo análisis
                         video_files = [f for f in os.listdir(outputs_dir) if f.endswith('.mp4')]
-                        if video_files:
-                            latest_video = max(video_files, key=lambda x: os.path.getctime(os.path.join(outputs_dir, x)))
-                            video_path = os.path.join(outputs_dir, latest_video)
-                            
+                        matching_video = None
+                        
+                        # Buscar video que contenga el mismo timestamp o el nombre del archivo original
+                        original_name = os.path.splitext(uploaded_file.name)[0] if uploaded_file else ""
+                        
+                        for video_file in video_files:
+                            # Buscar por timestamp exacto
+                            if csv_timestamp in video_file:
+                                matching_video = video_file
+                                break
+                            # Buscar por nombre de archivo original y timestamp cercano
+                            elif original_name and original_name.replace(" ", "_") in video_file:
+                                # Verificar que el video sea reciente (creado en los últimos minutos)
+                                video_path_temp = os.path.join(outputs_dir, video_file)
+                                video_time = os.path.getctime(video_path_temp)
+                                csv_time = os.path.getctime(output_dir)
+                                # Si el video fue creado dentro de 10 minutos del CSV
+                                if abs(video_time - csv_time) < 600:  # 10 minutos
+                                    matching_video = video_file
+                                    break
+                        
+                        # Si no se encuentra video específico, usar el más reciente como fallback
+                        if not matching_video and video_files:
+                            matching_video = max(video_files, key=lambda x: os.path.getctime(os.path.join(outputs_dir, x)))
+                        
+                        if matching_video:
+                            video_path = os.path.join(outputs_dir, matching_video)
                             st.subheader("🎬 Video Procesado")
+                            # Mostrar información de correspondencia
+                            st.info(f"📁 Datos CSV: {latest_csv_dir}")
+                            st.info(f"🎥 Video correspondiente: {matching_video}")
                             display_video(video_path)
                         
                         # Cargar datos CSV si no se han cargado ya
@@ -665,12 +694,45 @@ with tab1:
                             csv_data = load_csv_data(output_dir)
                             st.session_state.csv_data = csv_data
                             st.session_state.output_dir = output_dir
+                            st.session_state.csv_timestamp = csv_timestamp  # Guardar timestamp para referencia
 
 with tab2:
     st.header("📊 Estadísticas del Análisis")
     
     if 'csv_data' in st.session_state and st.session_state.csv_data:
         csv_data = st.session_state.csv_data
+        
+        # Mostrar información del análisis actual
+        if 'output_dir' in st.session_state:
+            col1, col2 = st.columns([3, 1])
+            
+            with col1:
+                output_dir_name = os.path.basename(st.session_state.output_dir)
+                st.info(f"📁 Mostrando datos de: **{output_dir_name}**")
+                
+                # Mostrar timestamp si está disponible
+                if 'csv_timestamp' in st.session_state:
+                    timestamp = st.session_state.csv_timestamp
+                    try:
+                        # Convertir timestamp a formato legible
+                        from datetime import datetime
+                        dt = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
+                        formatted_time = dt.strftime("%d/%m/%Y a las %H:%M:%S")
+                        st.info(f"🕒 Análisis realizado el: **{formatted_time}**")
+                    except ValueError:
+                        st.info(f"🕒 Timestamp: **{timestamp}**")
+            
+            with col2:
+                # Botón para limpiar datos y cargar análisis diferente
+                if st.button("🔄 Cargar Otro Análisis", help="Limpia los datos actuales para cargar un análisis diferente"):
+                    # Limpiar session state
+                    if 'csv_data' in st.session_state:
+                        del st.session_state.csv_data
+                    if 'output_dir' in st.session_state:
+                        del st.session_state.output_dir
+                    if 'csv_timestamp' in st.session_state:
+                        del st.session_state.csv_timestamp
+                    st.rerun()
         
         # Estadísticas de detecciones por frame
         if csv_data.get('frame_detections') is not None:
@@ -720,6 +782,41 @@ with tab2:
             st.plotly_chart(fig, width='stretch')
     else:
         st.info("Ejecuta un análisis de video para ver las estadísticas")
+        
+        # Mostrar análisis disponibles si existen
+        outputs_dir = "outputs"
+        if os.path.exists(outputs_dir):
+            csv_dirs = [d for d in os.listdir(outputs_dir) if d.startswith('csv_analysis_')]
+            if csv_dirs:
+                st.subheader("📂 Análisis Disponibles")
+                st.write("Puedes cargar datos de análisis previos:")
+                
+                # Ordenar por fecha (más reciente primero)
+                csv_dirs.sort(key=lambda x: os.path.getctime(os.path.join(outputs_dir, x)), reverse=True)
+                
+                for i, csv_dir in enumerate(csv_dirs[:5]):  # Mostrar solo los 5 más recientes
+                    dir_path = os.path.join(outputs_dir, csv_dir)
+                    timestamp = csv_dir.replace('csv_analysis_', '')
+                    
+                    try:
+                        from datetime import datetime
+                        dt = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
+                        formatted_time = dt.strftime("%d/%m/%Y %H:%M:%S")
+                        display_name = f"{formatted_time}"
+                    except ValueError:
+                        display_name = timestamp
+                    
+                    col1, col2 = st.columns([3, 1])
+                    with col1:
+                        st.write(f"📁 **{csv_dir}** - {display_name}")
+                    with col2:
+                        if st.button(f"📊 Cargar", key=f"load_{i}"):
+                            # Cargar datos del análisis seleccionado
+                            csv_data = load_csv_data(dir_path)
+                            st.session_state.csv_data = csv_data
+                            st.session_state.output_dir = dir_path
+                            st.session_state.csv_timestamp = timestamp
+                            st.rerun()
 
 with tab3:
     st.header("📍 Eventos de Zonas")
